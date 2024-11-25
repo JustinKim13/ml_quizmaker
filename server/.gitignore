@@ -1,0 +1,8 @@
+# Ignore output and data directories
+ml_models/outputs/
+ml_models/data_preprocessing/pdf_files/
+
+# Ignore media files
+*.mp3
+*.mp4
+*.wav
