@@ -1,0 +1,12 @@
+pypdf
+pytesseract 
+pdf2image 
+Pillow
+transformers
+tiktoken
+protobuf
+sentencepiece
+torch 
+torchvision 
+torchaudio
+spacy
