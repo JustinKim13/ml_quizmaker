@@ -157,6 +157,8 @@ def combine_selected_pdfs(directory_path, output_file_path):
 
 if __name__ == "__main__":
     input_dir = "ml_models/data_preprocessing/pdf_files" 
-    output_file = "ml_models/outputs/combined_output.txt"  
+    # Get absolute path
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    output_file = os.path.join(base_dir, "ml_models/outputs/combined_output.txt")
  
     combine_selected_pdfs(input_dir, output_file)

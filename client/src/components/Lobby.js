@@ -1,73 +1,105 @@
 import React, { useState, useEffect } from 'react';
-import GamePlay from './GamePlay';
-import '../styles/FileUpload.css';
+import '../styles/Lobby.css';
 
-const Lobby = ({ gameData }) => {
-    const [isProcessing, setIsProcessing] = useState(gameData.isProcessing);
+const Lobby = ({ gameData, startGame }) => {
+    const [isProcessing, setIsProcessing] = useState(true);
     const [questions, setQuestions] = useState(null);
-    const [gameStarted, setGameStarted] = useState(false);
+    const [statusMessage, setStatusMessage] = useState('Starting...');
+    const [progress, setProgress] = useState(0);
 
     useEffect(() => {
+        let pollInterval;
+        
         const checkStatus = async () => {
-            if (!isProcessing) return;
-
             try {
-                const response = await fetch('/api/status');
+                const response = await fetch('http://localhost:5000/api/status');
                 const data = await response.json();
                 
-                if (data.questionsGenerated) {
-                    // Questions are ready, fetch them
-                    const questionsResponse = await fetch('/api/questions');
-                    const questionsData = await questionsResponse.json();
-                    setQuestions(questionsData.questions);
-                    setIsProcessing(false);
-                } else {
-                    // Check again in 2 seconds
-                    setTimeout(checkStatus, 2000);
+                console.log("Status check:", data);
+                
+                switch(data.status) {
+                    case 'processing':
+                        setStatusMessage(data.message || 'Processing...');
+                        setProgress(prev => (prev < 90 ? prev + 2 : prev));
+                        break;
+                    case 'completed':
+                        const questionsResponse = await fetch('http://localhost:5000/api/questions');
+                        const questionsData = await questionsResponse.json();
+                        
+                        if (questionsData.questions && questionsData.questions.length > 0) {
+                            setQuestions(questionsData.questions);
+                            setIsProcessing(false);
+                            setStatusMessage('Questions ready!');
+                            setProgress(100);
+                        }
+                        break;
+                    case 'error':
+                        setStatusMessage(`Error: ${data.error}`);
+                        setIsProcessing(false);
+                        break;
+                    default:
+                        setStatusMessage('Processing...');
                 }
             } catch (error) {
                 console.error('Error checking status:', error);
+                setStatusMessage('Error checking status');
             }
         };
 
-        checkStatus();
+        if (isProcessing) {
+            pollInterval = setInterval(checkStatus, 1000);
+            checkStatus();
+        }
+
+        return () => {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+            }
+        };
     }, [isProcessing]);
-
-    const handleGameFinish = () => {
-        // Handle game finish (can add score display or return to lobby)
-        setGameStarted(false);
-    };
-
-    if (gameStarted && questions) {
-        return <GamePlay questions={questions} onFinish={handleGameFinish} />;
-    }
 
     return (
         <div className="lobby">
-            <h2>Game Lobby</h2>
-            <p>Game Code: {gameData.gameCode}</p>
-            <p>Player: {gameData.playerName}</p>
+            <div className="lobby-card">
+                <h2>Game Lobby</h2>
+                
+                <div className="game-info">
+                    <div className="info-item">
+                        <span className="label">Game Code</span>
+                        <span className="game-code">{gameData.gameCode}</span>
+                    </div>
+                    <div className="info-item">
+                        <span className="label">Player</span>
+                        <span className="player-name">{gameData.playerName}</span>
+                    </div>
+                </div>
 
-            {isProcessing ? (
-                <div className="loading-container">
-                    <div className="spinner"></div>
-                    <p>Generating questions...</p>
-                </div>
-            ) : questions ? (
-                <div className="questions-ready">
-                    <h3>Questions are ready!</h3>
-                    <button 
-                        className="start-game-button"
-                        onClick={() => setGameStarted(true)}
-                    >
-                        Start Game
-                    </button>
-                </div>
-            ) : (
-                <div className="error">
-                    <p>Error loading questions. Please try again.</p>
-                </div>
-            )}
+                {isProcessing ? (
+                    <div className="loading-container">
+                        <div className="progress-bar">
+                            <div 
+                                className="progress-fill" 
+                                style={{ width: `${progress}%` }}
+                            ></div>
+                        </div>
+                        <div className="spinner"></div>
+                        <p className="status-message">{statusMessage}</p>
+                    </div>
+                ) : questions ? (
+                    <div className="questions-ready">
+                        <div className="success-icon">✓</div>
+                        <h3>Questions are ready!</h3>
+                        <button onClick={startGame} className="start-game-button">
+                            Start Game
+                        </button>
+                    </div>
+                ) : (
+                    <div className="error">
+                        <div className="error-icon">!</div>
+                        <p>Error loading questions. Please try again.</p>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };

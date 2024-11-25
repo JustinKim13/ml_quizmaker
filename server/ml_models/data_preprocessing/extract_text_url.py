@@ -2,6 +2,7 @@ import os
 import subprocess
 from moviepy.editor import AudioFileClip
 import whisper
+import sys
 
 
 def download_video(video_url, output_dir="videos", cookies_file=None):
@@ -110,21 +111,16 @@ def append_to_combined_output(transcript, combined_output_path="ml_models/output
         print(f"Error appending transcript to combined output: {e}")
 
 
-def process_video_transcript(video_url, output_dir="outputs", cookies_file=None):
+def process_video_transcript(video_url, output_dir="ml_models/outputs/video_outputs"):
     """
     Processes a video URL to generate a transcript and save it.
-
-    Args:
-        video_url (str): The URL of the video.
-        output_dir (str): Directory to save outputs.
-        cookies_file (str): Path to cookies file for authentication (optional).
-
-    Returns:
-        str: Path to the saved transcript file.
     """
     try:
+        if not video_url:  # Skip if no URL provided
+            return ""
+            
         # Step 1: Download video
-        video_path = download_video(video_url, output_dir=output_dir, cookies_file=cookies_file)
+        video_path = download_video(video_url, output_dir=output_dir)
         if not video_path:
             return ""
 
@@ -139,30 +135,34 @@ def process_video_transcript(video_url, output_dir="outputs", cookies_file=None)
         if not transcript:
             return ""
 
-        # Step 4: Save transcript
-        transcript_file = os.path.join(output_dir, "transcript.txt")
-        # Overwrite the file if it exists
-        with open(transcript_file, "w", encoding="utf-8") as file:
-            file.write(transcript)
-        print(f"Transcript saved to: {transcript_file}")
-
-        # Step 5: Append transcript to combined output file
+        # Step 4: Append transcript to combined output file
         combined_output_path = "ml_models/outputs/combined_output.txt"
         append_to_combined_output(transcript, combined_output_path=combined_output_path)
 
-        return transcript_file
+        return "Success"
     except Exception as e:
         print(f"Error processing video transcript: {e}")
         return ""
 
 
 if __name__ == "__main__":
-    video_url = input("Enter the URL of the video: ")
-    cookies_file = input("Enter the path to cookies file (press Enter to skip): ") or None
-    output_dir = "ml_models/outputs/video_outputs"
-
-    transcript_file = process_video_transcript(video_url, output_dir=output_dir, cookies_file=cookies_file)
-    if transcript_file:
-        print(f"Transcript ready at: {transcript_file}")
-    else:
-        print("Failed to process video transcript.")
+    try:
+        # Read URL from stdin
+        video_url = input().strip()
+        if not video_url:
+            print("Error: No video URL provided")
+            sys.exit(1)
+            
+        output_dir = "ml_models/outputs/video_outputs"
+        result = process_video_transcript(video_url, output_dir=output_dir)
+        
+        if result:
+            print("Video processing completed successfully")
+            sys.exit(0)
+        else:
+            print("Failed to process video")
+            sys.exit(1)
+            
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        sys.exit(1)

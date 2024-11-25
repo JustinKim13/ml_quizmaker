@@ -2,185 +2,207 @@ const express = require("express");
 const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
-const { exec } = require("child_process");
+const { exec, spawn } = require("child_process");
 const cors = require("cors");
 
-let questionsGenerated = false; // Flag to track question generation
+// Define file paths at the top
+const QUESTIONS_FILE = path.join(__dirname, "ml_models/models/questions.json");
+const UPLOAD_DIR = path.join(__dirname, "ml_models/data_preprocessing/pdf_files");
+const STATUS_FILE = path.join(__dirname, "ml_models/models/status.json");
+const COMBINED_OUTPUT_FILE = path.join(__dirname, "ml_models/outputs/combined_output.txt");
+
+let questionsGenerated = false;
 
 const app = express();
-
-app.use(cors({
-    origin: 'http://localhost:3000',
-    methods: ['GET', 'POST'],
-    credentials: true,
-    allowedHeaders: ['Content-Type', 'Accept']
-}));
+app.use(cors());
 app.use(express.json());
 
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).send('Something broke!');
-});
-
-// Directory for uploading PDFs
-const uploadFolder = path.join(__dirname, "ml_models/data_preprocessing/pdf_files");
-
-// Clear the upload folder
-const clearUploadFolder = (folderPath) => {
-    fs.readdir(folderPath, (err, files) => {
-        if (err) {
-            console.error(`Error reading folder ${folderPath}:`, err);
-            return;
-        }
-        files.forEach((file) => {
-            const filePath = path.join(folderPath, file);
-            fs.unlink(filePath, (err) => {
-                if (err) {
-                    console.error(`Error deleting file ${filePath}:`, err);
-                }
-            });
-        });
-    });
-};
-
-// Multer setup for file uploads
+// Storage configuration for multer
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        clearUploadFolder(uploadFolder); // Clear the folder before uploading
-        cb(null, uploadFolder); // Specify the upload folder
+        if (!fs.existsSync(UPLOAD_DIR)) {
+            fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+        }
+        cb(null, UPLOAD_DIR);
     },
     filename: (req, file, cb) => {
         cb(null, `${Date.now()}-${file.originalname}`);
     },
 });
+
 const upload = multer({ storage });
 
-// API to handle multiple file uploads and process files
-app.post("/api/upload", upload.array("files", 5), (req, res) => {
-    console.log("Upload endpoint hit"); // Debug log
-    const { files } = req;
-    const { videoUrl } = req.body;
-
-    console.log("Files received:", files); // Debug log
-    console.log("Video URL received:", videoUrl); // Debug log
-
-    if (!files?.length && !videoUrl) {
-        console.log("No files or URL provided"); // Debug log
-        return res.status(400).json({
-            error: "Please upload at least one file or provide a video URL."
+// Add this middleware before multer processes the files
+app.post("/api/upload", (req, res, next) => {
+    // Clear PDF directory first
+    if (fs.existsSync(UPLOAD_DIR)) {
+        fs.readdirSync(UPLOAD_DIR).forEach((file) => {
+            const filePath = path.join(UPLOAD_DIR, file);
+            fs.unlinkSync(filePath);
+            console.log(`Cleared PDF: ${filePath}`);
         });
     }
+    next();
+}, upload.array("files", 5), async (req, res) => {
+    try {
+        console.log("Upload endpoint hit");
+        const files = req.files;
+        const videoUrl = req.body.videoUrl || '';
+        
+        console.log("Files received:", files);
+        console.log("Video URL received:", videoUrl);
 
-    questionsGenerated = false;
+        // Clear combined output and reset status
+        if (fs.existsSync(COMBINED_OUTPUT_FILE)) {
+            fs.writeFileSync(COMBINED_OUTPUT_FILE, '');
+            console.log('Cleared combined output file');
+        }
+        
+        fs.writeFileSync(QUESTIONS_FILE, JSON.stringify({ questions: [] }));
+        fs.writeFileSync(STATUS_FILE, JSON.stringify({
+            status: 'processing',
+            timestamp: new Date().toISOString(),
+            message: 'Starting processing...'
+        }));
 
-    const processPDFs = () => {
-        return new Promise((resolve, reject) => {
-            if (files.length) {
-                const filePaths = files.map((file) => path.join(uploadFolder, file.filename));
-                console.log(`Processing PDF files:`, filePaths);
+        // Process PDFs first if they exist
+        if (files && files.length > 0) {
+            const pdfFiles = files.map(file => file.path);
+            console.log("Processing PDF files:", pdfFiles);
+            try {
+                await processPdfFiles(pdfFiles);
+            } catch (error) {
+                console.error("Error processing PDFs:", error);
+                throw error;
+            }
+        }
 
-                // Example: Iterate through the PDFs (adapt as necessary for your Python script)
-                filePaths.forEach((filePath) => {
-                    exec(`python3 ml_models/data_preprocessing/extract_text_pdf.py "${filePath}"`, (err) => {
-                        if (err) {
-                            reject(`Error processing PDF: ${err}`);
+        // Then process video if URL exists
+        if (videoUrl.trim()) {
+            console.log("Processing video URL:", videoUrl);
+            try {
+                const pythonScript = path.join(__dirname, "ml_models/data_preprocessing/extract_text_url.py");
+                await new Promise((resolve, reject) => {
+                    const pythonProcess = spawn('python3', [pythonScript]);
+                    
+                    // Write the URL to the Python script's stdin
+                    pythonProcess.stdin.write(videoUrl + '\n');
+                    pythonProcess.stdin.end();
+                    
+                    pythonProcess.stdout.on('data', (data) => {
+                        console.log('Video Processing output:', data.toString());
+                    });
+
+                    pythonProcess.stderr.on('data', (data) => {
+                        console.error('Video Processing error:', data.toString());
+                    });
+
+                    pythonProcess.on('close', (code) => {
+                        if (code === 0) {
+                            console.log('Video processing completed successfully');
+                            resolve();
                         } else {
-                            console.log(`Processed PDF: ${filePath}`);
+                            reject(new Error(`Video processing failed with code ${code}`));
                         }
                     });
                 });
 
-                resolve("PDFs processed.");
-            } else {
-                resolve("No PDFs uploaded.");
+                // Wait a moment for file system to sync
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+            } catch (error) {
+                console.error("Error processing video:", error);
+                throw error;
             }
-        });
-    };
+        }
 
-    const processVideo = () => {
-        return new Promise((resolve, reject) => {
-            if (videoUrl) {
-                console.log(`Processing Video URL: ${videoUrl}`);
-                exec(`python3 ml_models/data_preprocessing/extract_text_url.py "${videoUrl}"`, (err) => {
-                    if (err) {
-                        reject(`Error processing video URL: ${err}`);
-                    } else {
-                        resolve("Video processed.");
-                    }
-                });
-            } else {
-                resolve("No video URL provided.");
-            }
-        });
-    };
+        // Only generate questions after both PDF and video processing are complete
+        try {
+            await generateQuestions();
+            res.status(200).json({ message: "Processing completed" });
+        } catch (error) {
+            console.error("Error generating questions:", error);
+            throw error;
+        }
 
-    const generateQuestions = () => {
-        return new Promise((resolve, reject) => {
-            console.log("Generating questions...");
-            exec("python3 ml_models/models/t5_model.py", (err) => {
-                if (err) {
-                    reject(`Error generating questions: ${err}`);
-                } else {
-                    questionsGenerated = true; // Mark as completed
-                    resolve("Questions generated.");
-                }
-            });
-        });
-    };
-
-    // Process files and generate questions sequentially
-    processPDFs()
-        .then(() => processVideo())
-        .then(() => generateQuestions())
-        .then(() => {
-            console.log("Processing completed successfully"); // Debug log
-            res.status(200).json({ 
-                success: true, 
-                message: "Processing started successfully" 
-            });
-        })
-        .catch((err) => {
-            console.error("Processing error:", err); // Debug log
-            res.status(500).json({ 
-                error: "Processing failed", 
-                details: err.message || String(err) 
-            });
-        });
+    } catch (error) {
+        console.error("Error in upload endpoint:", error);
+        fs.writeFileSync(STATUS_FILE, JSON.stringify({
+            status: 'error',
+            timestamp: new Date().toISOString(),
+            error: error.message
+        }));
+        if (!res.headersSent) {
+            res.status(500).json({ error: error.message });
+        }
+    }
 });
 
-// API to check if questions are ready
 app.get("/api/status", (req, res) => {
-    res.status(200).send({ questionsGenerated });
+    try {
+        if (fs.existsSync(STATUS_FILE)) {
+            const status = JSON.parse(fs.readFileSync(STATUS_FILE, 'utf8'));
+            console.log("Current status:", status);
+            
+            // Only set questionsGenerated to true if status is 'completed' AND we have questions
+            if (status.status === 'completed') {
+                const questionsData = JSON.parse(fs.readFileSync(QUESTIONS_FILE, 'utf8'));
+                const questionsGenerated = questionsData.questions && questionsData.questions.length > 0;
+                res.status(200).json({ 
+                    questionsGenerated,
+                    status: questionsGenerated ? 'completed' : 'processing',
+                    timestamp: status.timestamp
+                });
+            } else {
+                res.status(200).json({ 
+                    questionsGenerated: false,
+                    status: status.status,
+                    timestamp: status.timestamp
+                });
+            }
+        } else {
+            res.status(200).json({ 
+                questionsGenerated: false,
+                status: 'unknown'
+            });
+        }
+    } catch (error) {
+        console.error("Error checking status:", error);
+        res.status(500).json({ 
+            questionsGenerated: false,
+            status: 'error',
+            error: error.message
+        });
+    }
 });
 
 app.get("/api/questions", (req, res) => {
-    const questionFilePath = path.join(__dirname, "ml_models/models/questions.json");
-
-    fs.readFile(questionFilePath, "utf8", (err, data) => {
+    console.log("Reading questions from:", QUESTIONS_FILE);
+    
+    fs.readFile(QUESTIONS_FILE, "utf8", (err, data) => {
         if (err) {
             console.error("Error reading questions file:", err);
-            return res.status(500).send("Error reading questions file.");
+            return res.status(500).json({
+                error: "Error reading questions file",
+                details: err.message
+            });
         }
 
         try {
-            const questions = JSON.parse(data);
-            res.status(200).send({ questions });
+            const questionsData = JSON.parse(data);
+            console.log("Sending questions data:", questionsData);
+            res.status(200).json(questionsData);
         } catch (parseError) {
             console.error("Error parsing questions:", parseError);
-            res.status(500).send("Error parsing questions.");
+            res.status(500).json({
+                error: "Error parsing questions",
+                details: parseError.message
+            });
         }
     });
 });
 
-// Start the server
-app.listen(5000, () => {
-    console.log("Server running on port 5000");
-});
-
-// Add OPTIONS handling for preflight requests
-app.options('*', cors());
-
-// Add this after all your routes
+// Error handling middleware
 app.use((err, req, res, next) => {
     console.error('Global error handler:', err);
     res.status(500).json({
@@ -188,3 +210,109 @@ app.use((err, req, res, next) => {
         details: err.message
     });
 });
+
+// Start server
+app.listen(5000, () => {
+    console.log("Server running on port 5000");
+});
+
+// Modify the generateQuestions function
+const generateQuestions = async () => {
+    console.log("Starting generateQuestions function...");
+    
+    // Reset status at start
+    fs.writeFileSync(STATUS_FILE, JSON.stringify({
+        status: 'starting',
+        timestamp: new Date().toISOString()
+    }));
+
+    return new Promise((resolve, reject) => {
+        const pythonScript = path.join(__dirname, "ml_models/models/t5_model.py");
+        console.log("Running Python script:", pythonScript);
+        
+        const pythonProcess = exec(`python3 ${pythonScript}`, (error, stdout, stderr) => {
+            if (error) {
+                console.error("Error executing Python script:", error);
+                reject(error);
+                return;
+            }
+            if (stderr) {
+                console.log("Python stderr:", stderr);
+            }
+            console.log("Python stdout:", stdout);
+            
+            // Check final status
+            try {
+                const status = JSON.parse(fs.readFileSync(STATUS_FILE, 'utf8'));
+                questionsGenerated = status.status === 'completed';
+                resolve(stdout);
+            } catch (err) {
+                console.error("Error reading final status:", err);
+                reject(err);
+            }
+        });
+
+        // Log real-time output
+        pythonProcess.stdout.on('data', (data) => {
+            console.log(`Python output: ${data}`);
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+            console.log(`Python error: ${data}`);
+        });
+    });
+};
+
+// Helper function to process video URL
+function processVideoUrl(videoUrl) {
+    return new Promise((resolve, reject) => {
+        const pythonScript = path.join(__dirname, "ml_models/data_preprocessing/extract_text_url.py");
+        const pythonProcess = spawn('python3', [pythonScript]);
+
+        // Write the URL to the Python script's stdin
+        pythonProcess.stdin.write(videoUrl + '\n');
+        pythonProcess.stdin.end();
+
+        pythonProcess.stdout.on('data', (data) => {
+            console.log('Video Processing output:', data.toString());
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+            console.error('Video Processing error:', data.toString());
+        });
+
+        pythonProcess.on('close', (code) => {
+            if (code === 0) {
+                resolve();
+            } else {
+                reject(new Error(`Video processing failed with code ${code}`));
+            }
+        });
+    });
+}
+
+// Helper function to process PDF files
+function processPdfFiles(pdfFiles) {
+    return new Promise((resolve, reject) => {
+        const pythonScript = path.join(__dirname, "ml_models/data_preprocessing/extract_text_pdf.py");
+        const pdfFilesArg = pdfFiles.join(",");
+        
+        const pythonProcess = spawn('python3', [pythonScript, pdfFilesArg]);
+
+        pythonProcess.stdout.on('data', (data) => {
+            console.log('PDF Processing output:', data.toString());
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+            console.error('PDF Processing error:', data.toString());
+        });
+
+        pythonProcess.on('close', (code) => {
+            if (code === 0) {
+                resolve();
+            } else {
+                reject(new Error(`PDF processing failed with code ${code}`));
+            }
+        });
+    });
+}

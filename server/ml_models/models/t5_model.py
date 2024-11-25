@@ -97,95 +97,89 @@ if __name__ == "__main__":
     # File paths
     input_file = "ml_models/outputs/combined_output.txt"
     tokenized_chunks_file = "ml_models/data_preprocessing/tokenized_chunks.json"
-    output_file = "ml_models/outputs/generated_questions.json"  # New output file for questions
+    output_file = "ml_models/models/questions.json"
+    status_file = "ml_models/models/status.json"
 
     # Model names
     question_generation_model_name = "valhalla/t5-base-qg-hl"  # Question generation model
     question_answering_model_name = "deepset/roberta-base-squad2"  # Fine-tuned QA model on SQuAD
 
     try:
-        # Load models and tokenizers
+        # Update status to processing
+        with open(status_file, "w", encoding="utf-8") as f:
+            json.dump({
+                "status": "processing",
+                "timestamp": str(datetime.datetime.now())
+            }, f)
+
         print("Loading models...")
         qg_model, qg_tokenizer = load_qg_model_and_tokenizer(question_generation_model_name)
-        qa_pipeline = pipeline(
-            "question-answering", 
-            model=question_answering_model_name, 
-            tokenizer=question_answering_model_name, 
-            device=0 if torch.cuda.is_available() else -1
-        )
+        qa_pipeline = pipeline("question-answering", 
+                             model=question_answering_model_name, 
+                             tokenizer=question_answering_model_name, 
+                             device=0 if torch.cuda.is_available() else -1)
 
-        # Process raw text and save tokenized chunks
         print("Processing raw text...")
         chunks = load_and_tokenize_text(input_file, max_chunk_length=512, overlap=100)
         save_chunks(chunks, tokenized_chunks_file)
 
         # Initialize storage for QA pairs
         qa_pairs = []
-        valid_qa_count = 0
-        max_valid_qa = 10
+        max_valid_qa = 10  # Changed to 5 questions
 
-        # Shuffle chunks for randomization
-        random.shuffle(chunks)
-        print(f"Generating {max_valid_qa} questions...")
-
-        # Process chunks until we have enough valid questions
+        # Process multiple chunks to get 5 questions
+        random.shuffle(chunks)  # Randomize chunks
         for chunk in chunks:
-            if valid_qa_count >= max_valid_qa:
+            if len(qa_pairs) >= max_valid_qa:
                 break
-
-            # Clean and tokenize the chunk
+                
+            print(f"\nProcessing chunk: {chunk[:100]}...")
+            
             context = clean_context(chunk)
             question = generate_question(context, qg_model, qg_tokenizer)
+            print(f"Generated question: {question}")
 
-            # Extract the best answer
             best_answer, score = extract_best_answer(question, context, qa_pipeline)
+            print(f"Generated answer: {best_answer} (confidence: {score})")
 
-            # Store valid QA pair if score is above threshold
-            if score >= 0.2:
+            if score >= 0.1:
                 try:
-                    # Create multiple-choice options
                     mc_question = create_multiple_choice(question, best_answer, context)
                     
                     # Store the QA pair
-                    qa_pairs.append({
-                        "id": valid_qa_count,  # Add an ID for easy reference
+                    qa_pair = {
                         "question": mc_question['question'],
                         "options": mc_question['options'],
-                        "correct_answer": mc_question['answer'],
-                        "context": context,
-                        "confidence_score": float(score)  # Convert to float for JSON serialization
-                    })
+                        "correct_answer": mc_question['answer']
+                    }
+                    qa_pairs.append(qa_pair)
                     
-                    valid_qa_count += 1
-                    print(f"Generated question {valid_qa_count}/{max_valid_qa}")
+                    print(f"\nCreated multiple choice question {len(qa_pairs)} of {max_valid_qa}:")
+                    print(json.dumps(qa_pair, indent=2))
                     
                 except Exception as e:
                     print(f"Error generating distractors: {str(e)}")
-                    continue
 
-        # Save all QA pairs to JSON file
-        print(f"Saving {valid_qa_count} questions to {output_file}...")
+        # Always save qa_pairs, even if empty
         with open(output_file, "w", encoding="utf-8") as f:
+            json.dump({"questions": qa_pairs}, f, indent=2)
+            print(f"\nSaved question to {output_file}")
+
+        # After successfully saving questions, update status
+        with open(status_file, "w", encoding="utf-8") as f:
             json.dump({
-                "metadata": {
-                    "total_questions": valid_qa_count,
-                    "generation_timestamp": str(datetime.datetime.now()),
-                    "source_file": input_file
-                },
-                "questions": qa_pairs
-            }, f, indent=2)
-        
-        print("Question generation completed successfully!")
+                "status": "completed",
+                "timestamp": str(datetime.datetime.now()),
+                "questions_count": len(qa_pairs)
+            }, f)
+            print("Updated status to completed")
 
     except Exception as e:
-        print(f"An error occurred during question generation: {str(e)}")
-        # Optionally, create an empty questions file to indicate completion
-        with open(output_file, "w", encoding="utf-8") as f:
+        print(f"An error occurred: {str(e)}")
+        # Update status to error
+        with open(status_file, "w", encoding="utf-8") as f:
             json.dump({
-                "metadata": {
-                    "error": str(e),
-                    "generation_timestamp": str(datetime.datetime.now())
-                },
-                "questions": []
-            }, f, indent=2)
-        raise e
+                "status": "error",
+                "timestamp": str(datetime.datetime.now()),
+                "error": str(e)
+            }, f)

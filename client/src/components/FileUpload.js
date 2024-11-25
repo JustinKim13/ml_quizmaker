@@ -5,7 +5,6 @@ const FileUpload = ({ setGameData }) => {
     const [username, setUsername] = useState("");
     const [files, setFiles] = useState([]);
     const [videoUrl, setVideoUrl] = useState("");
-    const [isLoading, setIsLoading] = useState(false);
 
     const handleSubmit = async () => {
         if (!username.trim()) {
@@ -17,13 +16,6 @@ const FileUpload = ({ setGameData }) => {
             return;
         }
 
-        const formData = new FormData();
-        for (let file of files) {
-            formData.append("files", file);
-        }
-        formData.append("videoUrl", videoUrl);
-        formData.append("username", username);
-
         const gameCode = Math.random().toString(36).substr(2, 6).toUpperCase();
         const gameData = { 
             playerName: username, 
@@ -32,68 +24,74 @@ const FileUpload = ({ setGameData }) => {
             gameCode,
             isProcessing: true
         };
-        
+
+        setGameData(gameData);
+
+        const formData = new FormData();
+        for (let file of files) {
+            formData.append("files", file);
+        }
+        formData.append("videoUrl", videoUrl);
+        formData.append("username", username);
+
         try {
-            console.log("Sending request to server...");
             const response = await fetch("http://localhost:5000/api/upload", {
                 method: "POST",
                 body: formData,
-                credentials: 'include',
-                headers: {
-                    'Accept': 'application/json',
-                }
             });
 
-            const responseData = await response.json();
-            console.log("Server response:", responseData);
-
             if (!response.ok) {
-                throw new Error(responseData.error || 'Upload failed');
+                throw new Error('Upload failed');
             }
-
-            console.log("Upload successful, transitioning to lobby...");
-            setGameData(gameData);
         } catch (err) {
-            console.error("Detailed upload error:", err);
-            alert(`Error uploading files: ${err.message}`);
+            console.error("Upload error:", err);
         }
     };
 
     return (
-        <div>
-            <h2>Upload PDF(s) or Video URL</h2>
-            <button onClick={() => setIsLoading(!isLoading)}>
-                Toggle Loading (Test)
-            </button>
+        <div className="upload-container">
+            <h2>Create Your Quiz</h2>
+            <div className="input-group">
+                <input
+                    type="text"
+                    placeholder="Enter your username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                />
+            </div>
             
-            {isLoading ? (
-                <div className="loading-container">
-                    <div className="spinner"></div>
-                    <p>Generating questions...</p>
-                </div>
-            ) : (
-                <>
-                    <input
-                        type="text"
-                        placeholder="Enter your username"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                    />
+            <div className="file-input-wrapper">
+                <label className="file-input-label">
+                    Choose PDF Files
                     <input
                         type="file"
                         accept=".pdf"
                         multiple
+                        className="file-input"
                         onChange={(e) => setFiles(Array.from(e.target.files))}
                     />
-                    <input
-                        type="text"
-                        placeholder="Enter video URL"
-                        value={videoUrl}
-                        onChange={(e) => setVideoUrl(e.target.value)}
-                    />
-                    <button onClick={handleSubmit}>Submit</button>
-                </>
-            )}
+                </label>
+                {files.length > 0 && (
+                    <ul className="file-list">
+                        {Array.from(files).map((file, index) => (
+                            <li key={index}>{file.name}</li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+
+            <div className="input-group">
+                <input
+                    type="text"
+                    placeholder="Enter video URL (optional)"
+                    value={videoUrl}
+                    onChange={(e) => setVideoUrl(e.target.value)}
+                />
+            </div>
+
+            <button className="submit-button" onClick={handleSubmit}>
+                Create Quiz
+            </button>
         </div>
     );
 };
