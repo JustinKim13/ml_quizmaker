@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/Lobby.css';
 
-const Lobby = ({ gameData, startGame }) => {
+const Lobby = ({ gameData, startGame, onBack }) => {
     const [isProcessing, setIsProcessing] = useState(true);
     const [questions, setQuestions] = useState(null);
     const [statusMessage, setStatusMessage] = useState('Starting...');
@@ -60,6 +60,9 @@ const Lobby = ({ gameData, startGame }) => {
 
     return (
         <div className="lobby">
+            <div className="back-button" onClick={onBack}>
+                ← Back
+            </div>
             <div className="lobby-card">
                 <h2>Game Lobby</h2>
                 

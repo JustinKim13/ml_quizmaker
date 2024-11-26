@@ -16,35 +16,37 @@ const LandingPage = ({ onStart }) => {
     return (
         <div className="landing-container">
             <div className="landing-card">
-                <h2>Welcome to QuizGen</h2>
-                <div className="form-container">
-                    <div className="input-group">
-                        <input
-                            type="text"
-                            placeholder="Enter your username"
-                            value={username}
-                            onChange={(e) => {
-                                setUsername(e.target.value);
-                                setError("");
-                            }}
-                            className={error ? "error" : ""}
-                        />
-                        {error && <div className="error-message">{error}</div>}
-                    </div>
-                    
-                    <div className="button-group">
-                        <button 
-                            className="action-button create"
-                            onClick={() => handleButtonClick('create')}
-                        >
-                            Create Game
-                        </button>
-                        <button 
-                            className="action-button join"
-                            onClick={() => handleButtonClick('join')}
-                        >
-                            Join Game
-                        </button>
+                <div className="landing-content">
+                    <h2>Welcome to QuizClash</h2>
+                    <div className="form-container">
+                        <div className="input-group">
+                            <input
+                                type="text"
+                                placeholder="Enter your username"
+                                value={username}
+                                onChange={(e) => {
+                                    setUsername(e.target.value);
+                                    setError("");
+                                }}
+                                className={error ? "error" : ""}
+                            />
+                            {error && <div className="error-message">{error}</div>}
+                        </div>
+                        
+                        <div className="button-group">
+                            <button 
+                                className="action-button create"
+                                onClick={() => handleButtonClick('create')}
+                            >
+                                Create Game
+                            </button>
+                            <button 
+                                className="action-button join"
+                                onClick={() => handleButtonClick('join')}
+                            >
+                                Join Game
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

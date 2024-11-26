@@ -1,34 +1,34 @@
 {
   "questions": [
     {
-      "question": "What famous streamer has Ligma?",
+      "question": "What did I prefer to read about kings and rulers?",
       "options": [
-        "Can",
-        "Ninja",
-        "Question",
-        "the"
+        "Scripture",
+        "But",
+        "books",
+        "Holy Scripture"
       ],
-      "correct_answer": "Ninja"
+      "correct_answer": "books"
     },
     {
-      "question": "What word was popularized by your rage?",
+      "question": "What was Sheikh Mahmoud's age?",
       "options": [
-        "What",
-        "is",
-        "doing",
-        "kiyad"
+        "sixty",
+        "smal",
+        "LX",
+        "threescore"
       ],
-      "correct_answer": "kiyad"
+      "correct_answer": "sixty"
     },
     {
-      "question": "What is the name of the animal that trolled I show speed?",
+      "question": "What did the Minister of Health remove from me as Director of Health Education and Editor-in-Chief of the magazine Health?",
       "options": [
-        "laughingstock",
-        "stooge",
-        "goat",
-        "butt"
+        "Director",
+        "my",
+        "as",
+        "my functions"
       ],
-      "correct_answer": "goat"
+      "correct_answer": "my functions"
     }
   ]
 }

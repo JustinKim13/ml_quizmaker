@@ -4,6 +4,7 @@ import '../styles/FileUpload.css';
 const FileUpload = ({ setGameData, username, onBack }) => {
     const [files, setFiles] = useState([]);
     const [videoUrl, setVideoUrl] = useState("");
+    const [error, setError] = useState("");
 
     const handleRemoveFile = (indexToRemove) => {
         setFiles(prevFiles => 
@@ -13,9 +14,10 @@ const FileUpload = ({ setGameData, username, onBack }) => {
 
     const handleSubmit = async () => {
         if (!files.length && !videoUrl.trim()) {
-            alert("Please upload at least one file or provide a video URL.");
+            setError("Please upload at least one file or provide a video URL");
             return;
         }
+        setError("");
 
         const gameCode = Math.random().toString(36).substr(2, 6).toUpperCase();
         const gameData = { 
@@ -68,7 +70,10 @@ const FileUpload = ({ setGameData, username, onBack }) => {
                                 accept=".pdf"
                                 multiple
                                 className="file-input"
-                                onChange={(e) => setFiles(Array.from(e.target.files))}
+                                onChange={(e) => {
+                                    setFiles(Array.from(e.target.files));
+                                    setError("");
+                                }}
                             />
                             📄 Choose PDF Files
                         </label>
@@ -104,13 +109,19 @@ const FileUpload = ({ setGameData, username, onBack }) => {
                             type="text"
                             placeholder="Enter video URL (optional)"
                             value={videoUrl}
-                            onChange={(e) => setVideoUrl(e.target.value)}
+                            onChange={(e) => {
+                                setVideoUrl(e.target.value);
+                                setError("");
+                            }}
                         />
                     </div>
 
-                    <button className="submit-button" onClick={handleSubmit}>
-                        Create Quiz
-                    </button>
+                    <div className="submit-wrapper">
+                        <button className="submit-button" onClick={handleSubmit}>
+                            Create Quiz
+                        </button>
+                        {error && <div className="error-message">{error}</div>}
+                    </div>
                 </div>
             </div>
         </div>

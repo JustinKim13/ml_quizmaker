@@ -1,0 +1,35 @@
+.action-button, .submit-button, .join-button, .file-input-label {
+    width: 100%;
+    max-width: 250px;
+    padding: 15px 20px;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* Green buttons */
+.action-button.create, .submit-button, .join-button {
+    background: #2ecc71;
+}
+
+.action-button.create:hover, .submit-button:hover, .join-button:hover {
+    background: #27ae60;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(46, 204, 113, 0.3);
+}
+
+/* Blue buttons */
+.action-button.join, .file-input-label {
+    background: #3498db;
+}
+
+.action-button.join:hover, .file-input-label:hover {
+    background: #2980b9;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+} 

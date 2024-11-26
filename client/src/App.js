@@ -3,6 +3,8 @@ import LandingPage from "./components/LandingPage";
 import FileUpload from "./components/FileUpload";
 import Lobby from "./components/Lobby";
 import GamePlay from "./components/GamePlay";
+import JoinGame from "./components/JoinGame";
+import './styles/shared/ButtonStyles.css';
 
 function App() {
     const [currentPage, setCurrentPage] = useState('landing');
@@ -12,7 +14,7 @@ function App() {
 
     const handleStart = (username, action) => {
         setUsername(username);
-        setCurrentPage('upload');
+        setCurrentPage(action === 'create' ? 'upload' : 'join');
     };
 
     const startGame = async () => {
@@ -67,6 +69,7 @@ function App() {
                 <Lobby 
                     gameData={gameData}
                     startGame={startGame}
+                    onBack={() => setCurrentPage('upload')}
                 />
             );
             
@@ -74,9 +77,19 @@ function App() {
             return (
                 <GamePlay 
                     questions={questions} 
-                    onFinish={() => setCurrentPage('landing')}
+                    onFinish={() => setCurrentPage('lobby')}
                 />
             );
+            
+        case 'join':
+            return <JoinGame 
+                username={username}
+                onJoin={(gameData) => {
+                    setGameData(gameData);
+                    setCurrentPage('lobby');
+                }}
+                onBack={() => setCurrentPage('landing')}
+            />;
             
         default:
             return <LandingPage onStart={handleStart} />;
