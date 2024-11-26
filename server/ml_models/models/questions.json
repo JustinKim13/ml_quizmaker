@@ -1,104 +1,34 @@
 {
   "questions": [
     {
-      "question": "What is Rick's city?",
-      "options": [
-        "flip",
-        "England",
-        "lege",
-        "Waterbottles"
-      ],
-      "correct_answer": "England"
-    },
-    {
-      "question": "What does MLG stand for?",
-      "options": [
-        "League",
-        "Gaming",
-        "Major League Gaming",
-        "Major"
-      ],
-      "correct_answer": "Major League Gaming"
-    },
-    {
-      "question": "What was the name of the podcast made from the hog tour meme?",
-      "options": [
-        "tour",
-        "YouTuber",
-        "the",
-        "talk tour"
-      ],
-      "correct_answer": "talk tour"
-    },
-    {
-      "question": "What did Drakey poo and Kendrick Lamar say?",
-      "options": [
-        "is",
-        "Who",
-        "get",
-        "Who is your sunshine"
-      ],
-      "correct_answer": "Who is your sunshine"
-    },
-    {
       "question": "What famous streamer has Ligma?",
       "options": [
+        "Can",
         "Ninja",
-        "and",
-        "dog",
-        "into"
+        "Question",
+        "the"
       ],
       "correct_answer": "Ninja"
     },
     {
-      "question": "What key do you press to pay respects?",
+      "question": "What word was popularized by your rage?",
       "options": [
-        "F key",
-        "Ice",
-        "Finish",
-        "Bucket"
-      ],
-      "correct_answer": "F key"
-    },
-    {
-      "question": "What challenge made people put two pencils on top of each other to summon a demon?",
-      "options": [
-        "Charlie Charlie challenge",
-        "challenge",
-        "Doge",
-        "adorable"
-      ],
-      "correct_answer": "Charlie Charlie challenge"
-    },
-    {
-      "question": "What is the weirdest state in America?",
-      "options": [
-        "Ohio",
-        "Ohio River",
-        "Fill",
-        "blank"
-      ],
-      "correct_answer": "Ohio"
-    },
-    {
-      "question": "What is the meme snack and drink?",
-      "options": [
-        "Doritos and Mountain Dew",
-        "and",
+        "What",
         "is",
-        "Dew"
+        "doing",
+        "kiyad"
       ],
-      "correct_answer": "Doritos and Mountain Dew"
+      "correct_answer": "kiyad"
     },
     {
-      "question": "What did the Yodeling Kid perform in?",
+      "question": "What is the name of the animal that trolled I show speed?",
       "options": [
-        "Ha",
-        "to",
-        "Walmart",
-        "say"
+        "laughingstock",
+        "stooge",
+        "goat",
+        "butt"
       ],
-      "correct_answer": "Walmart"
+      "correct_answer": "goat"
     }
   ]
 }

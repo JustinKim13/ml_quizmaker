@@ -1,0 +1,116 @@
+.landing-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    padding: 20px;
+}
+
+.landing-card {
+    max-width: 800px;
+    width: 100%;
+    padding: 40px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    animation: slideIn 0.5s ease-out;
+}
+
+.landing-card h2 {
+    color: #2c3e50;
+    margin-bottom: 30px;
+    font-size: 2.5em;
+    text-align: center;
+    font-weight: 700;
+}
+
+.form-container {
+    width: 90%;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.input-group {
+    margin-bottom: 40px;
+    position: relative;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 15px 20px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    font-size: 1.1em;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+}
+
+.input-group input:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 20px rgba(52, 152, 219, 0.15);
+    outline: none;
+    transform: translateY(-2px);
+}
+
+.input-group input.error {
+    border-color: #e74c3c;
+}
+
+.error-message {
+    color: #e74c3c;
+    font-size: 0.9em;
+    margin-top: 8px;
+    position: absolute;
+}
+
+.button-group {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.action-button {
+    width: 100%;
+    padding: 15px 20px;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    color: white;
+}
+
+.action-button.create {
+    background: #3498db;
+}
+
+.action-button.create:hover {
+    background: #2980b9;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+}
+
+.action-button.join {
+    background: #2ecc71;
+}
+
+.action-button.join:hover {
+    background: #27ae60;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(46, 204, 113, 0.3);
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+} 

@@ -3,6 +3,8 @@ import subprocess
 from moviepy.editor import AudioFileClip
 import whisper
 import sys
+import json
+import datetime
 
 
 def download_video(video_url, output_dir="videos", cookies_file=None):
@@ -119,16 +121,40 @@ def process_video_transcript(video_url, output_dir="ml_models/outputs/video_outp
         if not video_url:  # Skip if no URL provided
             return ""
             
+        # Update status for video download
+        with open("ml_models/models/status.json", "w", encoding="utf-8") as f:
+            json.dump({
+                "status": "processing",
+                "message": "Downloading video...",
+                "timestamp": str(datetime.datetime.now())
+            }, f)
+            
         # Step 1: Download video
         video_path = download_video(video_url, output_dir=output_dir)
         if not video_path:
             return ""
+
+        # Update status for audio extraction
+        with open("ml_models/models/status.json", "w", encoding="utf-8") as f:
+            json.dump({
+                "status": "processing",
+                "message": "Extracting audio from video...",
+                "timestamp": str(datetime.datetime.now())
+            }, f)
 
         # Step 2: Extract audio
         audio_path = os.path.join(output_dir, "audio.wav")
         audio_path = extract_audio(video_path, audio_output_path=audio_path)
         if not audio_path:
             return ""
+
+        # Update status for transcription
+        with open("ml_models/models/status.json", "w", encoding="utf-8") as f:
+            json.dump({
+                "status": "processing",
+                "message": "Transcribing video content...",
+                "timestamp": str(datetime.datetime.now())
+            }, f)
 
         # Step 3: Transcribe audio
         transcript = transcribe_audio(audio_path)

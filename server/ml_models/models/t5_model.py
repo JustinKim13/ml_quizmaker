@@ -105,10 +105,11 @@ if __name__ == "__main__":
     question_answering_model_name = "deepset/roberta-base-squad2"  # Fine-tuned QA model on SQuAD
 
     try:
-        # Update status to processing
+        # Update status to processing PDFs
         with open(status_file, "w", encoding="utf-8") as f:
             json.dump({
                 "status": "processing",
+                "message": "Reading PDF files...",
                 "timestamp": str(datetime.datetime.now())
             }, f)
 
@@ -119,13 +120,29 @@ if __name__ == "__main__":
                              tokenizer=question_answering_model_name, 
                              device=0 if torch.cuda.is_available() else -1)
 
+        # Update status to processing text
+        with open(status_file, "w", encoding="utf-8") as f:
+            json.dump({
+                "status": "processing",
+                "message": "Processing text content...",
+                "timestamp": str(datetime.datetime.now())
+            }, f)
+
         print("Processing raw text...")
         chunks = load_and_tokenize_text(input_file, max_chunk_length=512, overlap=100)
         save_chunks(chunks, tokenized_chunks_file)
 
+        # Update status to generating questions
+        with open(status_file, "w", encoding="utf-8") as f:
+            json.dump({
+                "status": "processing",
+                "message": "Generating quiz questions...",
+                "timestamp": str(datetime.datetime.now())
+            }, f)
+
         # Initialize storage for QA pairs
         qa_pairs = []
-        max_valid_qa = 10  # Changed to 5 questions
+        max_valid_qa = 3
 
         # Process multiple chunks to get 5 questions
         random.shuffle(chunks)  # Randomize chunks
@@ -142,7 +159,7 @@ if __name__ == "__main__":
             best_answer, score = extract_best_answer(question, context, qa_pipeline)
             print(f"Generated answer: {best_answer} (confidence: {score})")
 
-            if score >= 0.1:
+            if score >= 0.2:
                 try:
                     mc_question = create_multiple_choice(question, best_answer, context)
                     

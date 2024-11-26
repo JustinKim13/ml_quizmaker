@@ -51,26 +51,24 @@ app.post("/api/upload", (req, res, next) => {
         
         console.log("Files received:", files);
         console.log("Video URL received:", videoUrl);
-
+        
         // Clear combined output and reset status
         if (fs.existsSync(COMBINED_OUTPUT_FILE)) {
             fs.writeFileSync(COMBINED_OUTPUT_FILE, '');
-            console.log('Cleared combined output file');
         }
         
         fs.writeFileSync(QUESTIONS_FILE, JSON.stringify({ questions: [] }));
-        fs.writeFileSync(STATUS_FILE, JSON.stringify({
-            status: 'processing',
-            timestamp: new Date().toISOString(),
-            message: 'Starting processing...'
-        }));
 
         // Process PDFs first if they exist
         if (files && files.length > 0) {
-            const pdfFiles = files.map(file => file.path);
-            console.log("Processing PDF files:", pdfFiles);
+            fs.writeFileSync(STATUS_FILE, JSON.stringify({
+                status: 'processing',
+                timestamp: new Date().toISOString(),
+                message: 'Reading PDF files...'
+            }));
+            
             try {
-                await processPdfFiles(pdfFiles);
+                await processPdfFiles(files.map(f => f.path));
             } catch (error) {
                 console.error("Error processing PDFs:", error);
                 throw error;
@@ -79,44 +77,28 @@ app.post("/api/upload", (req, res, next) => {
 
         // Then process video if URL exists
         if (videoUrl.trim()) {
-            console.log("Processing video URL:", videoUrl);
+            fs.writeFileSync(STATUS_FILE, JSON.stringify({
+                status: 'processing',
+                timestamp: new Date().toISOString(),
+                message: 'Processing video content...'
+            }));
+            
             try {
-                const pythonScript = path.join(__dirname, "ml_models/data_preprocessing/extract_text_url.py");
-                await new Promise((resolve, reject) => {
-                    const pythonProcess = spawn('python3', [pythonScript]);
-                    
-                    // Write the URL to the Python script's stdin
-                    pythonProcess.stdin.write(videoUrl + '\n');
-                    pythonProcess.stdin.end();
-                    
-                    pythonProcess.stdout.on('data', (data) => {
-                        console.log('Video Processing output:', data.toString());
-                    });
-
-                    pythonProcess.stderr.on('data', (data) => {
-                        console.error('Video Processing error:', data.toString());
-                    });
-
-                    pythonProcess.on('close', (code) => {
-                        if (code === 0) {
-                            console.log('Video processing completed successfully');
-                            resolve();
-                        } else {
-                            reject(new Error(`Video processing failed with code ${code}`));
-                        }
-                    });
-                });
-
-                // Wait a moment for file system to sync
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
+                await processVideoUrl(videoUrl);
             } catch (error) {
                 console.error("Error processing video:", error);
                 throw error;
             }
         }
 
-        // Only generate questions after both PDF and video processing are complete
+        // Update status for question generation
+        fs.writeFileSync(STATUS_FILE, JSON.stringify({
+            status: 'processing',
+            timestamp: new Date().toISOString(),
+            message: 'Generating quiz questions...'
+        }));
+
+        // Generate questions
         try {
             await generateQuestions();
             res.status(200).json({ message: "Processing completed" });
@@ -130,7 +112,7 @@ app.post("/api/upload", (req, res, next) => {
         fs.writeFileSync(STATUS_FILE, JSON.stringify({
             status: 'error',
             timestamp: new Date().toISOString(),
-            error: error.message
+            message: `Error: ${error.message}`
         }));
         if (!res.headersSent) {
             res.status(500).json({ error: error.message });
@@ -151,19 +133,22 @@ app.get("/api/status", (req, res) => {
                 res.status(200).json({ 
                     questionsGenerated,
                     status: questionsGenerated ? 'completed' : 'processing',
+                    message: status.message,
                     timestamp: status.timestamp
                 });
             } else {
                 res.status(200).json({ 
                     questionsGenerated: false,
                     status: status.status,
+                    message: status.message,
                     timestamp: status.timestamp
                 });
             }
         } else {
             res.status(200).json({ 
                 questionsGenerated: false,
-                status: 'unknown'
+                status: 'unknown',
+                message: 'Starting...'
             });
         }
     } catch (error) {
@@ -171,7 +156,7 @@ app.get("/api/status", (req, res) => {
         res.status(500).json({ 
             questionsGenerated: false,
             status: 'error',
-            error: error.message
+            message: error.message
         });
     }
 });

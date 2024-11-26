@@ -2,6 +2,8 @@ from pypdf import PdfReader
 from pdf2image import convert_from_path
 from pytesseract import image_to_string
 import os
+import json
+import datetime
 
 def extract_text_from_pdf(file_path):
     """
@@ -97,63 +99,43 @@ def list_pdf_files(directory_path):
         return []
 
 def combine_selected_pdfs(directory_path, output_file_path):
-    """
-    Allows user to select specific PDFs from a directory and combines the text
-    from selected PDFs into one text file.
-
-    Args:
-        directory_path (str): Path to the directory containing PDF files.
-        output_file_path (str): Path to the output text file.
-
-    Returns:
-        None
-    """
-    # List all PDFs in the directory
-    pdf_files = list_pdf_files(directory_path)
-    if not pdf_files:
-        return
-
-    # Display the list of PDFs and prompt the user to select files
-    print("\nAvailable PDF files:")
-    for idx, file_name in enumerate(pdf_files, start=1):
-        print(f"{idx}: {file_name}")
-    
-    ## FOR SELECTING SPECIFIC FILES
-    
-    # print("\nEnter the numbers of the PDFs you want to combine (comma-separated):")
-    # selection = input("Selection: ")
-    
-    # try:
-    #     selected_indices = [int(i) - 1 for i in selection.split(",") if i.strip().isdigit()]
-    #     selected_files = [pdf_files[i] for i in selected_indices if 0 <= i < len(pdf_files)]
-    # except Exception as e:
-    #     print(f"Invalid selection: {e}")
-    #     return
-    
-    ###
-    
-    # DEFAULT TO USING ALL FILES FOR NOW
-    selected_files = pdf_files
-
-    if not selected_files:
-        print("No valid files selected.")
-        return
-
-    print(f"\nSelected files: {', '.join(selected_files)}")
-
-    # Combine text from selected PDFs
-    combined_text = ""
-    for file_name in selected_files:
-        file_path = os.path.join(directory_path, file_name)
-        combined_text += extract_text_from_pdf(file_path) + "\n"
-
-    # Save combined text to the output file
     try:
-        with open(output_file_path, "w", encoding="utf-8") as output_file:
-            output_file.write(combined_text)
-        print(f"\nCombined text saved to: {output_file_path}")
+        # Update status for PDF processing
+        with open("ml_models/models/status.json", "w", encoding="utf-8") as f:
+            json.dump({
+                "status": "processing",
+                "message": "Reading PDF files...",
+                "timestamp": str(datetime.datetime.now())
+            }, f)
+            
+        # List all PDFs in the directory
+        pdf_files = list_pdf_files(directory_path)
+        if not pdf_files:
+            return
+
+        # Process PDFs
+        combined_text = ""
+        for file_name in pdf_files:
+            with open("ml_models/models/status.json", "w", encoding="utf-8") as f:
+                json.dump({
+                    "status": "processing",
+                    "message": f"Processing {file_name}...",
+                    "timestamp": str(datetime.datetime.now())
+                }, f)
+                
+            file_path = os.path.join(directory_path, file_name)
+            combined_text += extract_text_from_pdf(file_path) + "\n"
+
+        # Save combined text
+        try:
+            with open(output_file_path, "w", encoding="utf-8") as output_file:
+                output_file.write(combined_text)
+            print(f"\nCombined text saved to: {output_file_path}")
+        except Exception as e:
+            print(f"Error writing to output file {output_file_path}: {e}")
+
     except Exception as e:
-        print(f"Error writing to output file {output_file_path}: {e}")
+        print(f"Error in combine_selected_pdfs: {e}")
 
 if __name__ == "__main__":
     input_dir = "ml_models/data_preprocessing/pdf_files" 
