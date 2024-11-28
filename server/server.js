@@ -34,15 +34,30 @@ const upload = multer({ storage });
 
 // Add this middleware before multer processes the files
 app.post("/api/upload", (req, res, next) => {
-    // Clear PDF directory first
-    if (fs.existsSync(UPLOAD_DIR)) {
-        fs.readdirSync(UPLOAD_DIR).forEach((file) => {
-            const filePath = path.join(UPLOAD_DIR, file);
-            fs.unlinkSync(filePath);
-            console.log(`Cleared PDF: ${filePath}`);
-        });
+    try {
+        // 1. Clear PDF directory
+        const pdfDir = path.join(__dirname, "ml_models/data_preprocessing/pdf_files");
+        if (fs.existsSync(pdfDir)) {
+            fs.readdirSync(pdfDir).forEach(file => {
+                fs.unlinkSync(path.join(pdfDir, file));
+                console.log(`Cleared PDF: ${file}`);
+            });
+        }
+
+        // 2. Clear video outputs directory
+        const videoDir = path.join(__dirname, "ml_models/outputs/video_outputs");
+        if (fs.existsSync(videoDir)) {
+            fs.readdirSync(videoDir).forEach(file => {
+                fs.unlinkSync(path.join(videoDir, file));
+                console.log(`Cleared video output: ${file}`);
+            });
+        }
+
+        next();
+    } catch (error) {
+        console.error("Error clearing directories:", error);
+        res.status(500).json({ error: "Failed to clear old files" });
     }
-    next();
 }, upload.array("files", 5), async (req, res) => {
     try {
         console.log("Upload endpoint hit");

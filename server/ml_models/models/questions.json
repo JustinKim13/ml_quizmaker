@@ -1,34 +1,34 @@
 {
   "questions": [
     {
-      "question": "What did I prefer to read about kings and rulers?",
+      "question": "What happened to Firdaus at the end of 1974?",
       "options": [
-        "Scripture",
-        "But",
-        "books",
-        "Holy Scripture"
+        "executed",
+        "until",
+        "lay",
+        "her"
       ],
-      "correct_answer": "books"
+      "correct_answer": "executed"
     },
     {
-      "question": "What was Sheikh Mahmoud's age?",
+      "question": "Why did I like my job?",
       "options": [
-        "sixty",
-        "smal",
-        "LX",
-        "threescore"
+        "despite everything",
+        "despite",
+        "everything",
+        "to"
       ],
-      "correct_answer": "sixty"
+      "correct_answer": "despite everything"
     },
     {
-      "question": "What did the Minister of Health remove from me as Director of Health Education and Editor-in-Chief of the magazine Health?",
+      "question": "What was the warder's name?",
       "options": [
-        "Director",
-        "my",
-        "as",
-        "my functions"
+        "a",
+        "Doctor! Doctor",
+        "of",
+        "She"
       ],
-      "correct_answer": "my functions"
+      "correct_answer": "Doctor! Doctor"
     }
   ]
 }
