@@ -1,31 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import '../styles/JoinGame.css';
 
 const JoinGame = ({ username, onJoin, onBack }) => {
     const [gameCode, setGameCode] = useState('');
     const [error, setError] = useState('');
+    const [activeGames, setActiveGames] = useState([]);
 
-    const handleSubmit = async () => {
-        if (gameCode.length !== 6) {
-            setError('Please enter a valid 6-character game code');
-            return;
-        }
+    useEffect(() => {
+        const fetchGames = async () => {
+            try {
+                const response = await fetch('http://localhost:5000/api/active-games');
+                const data = await response.json();
+                setActiveGames(data.games);
+            } catch (err) {
+                console.error('Error fetching games:', err);
+            }
+        };
 
+        fetchGames();
+        const interval = setInterval(fetchGames, 5000); // Poll every 5 seconds
+        return () => clearInterval(interval);
+    }, []);
+
+    const handleJoin = async (code) => {
         try {
-            const response = await fetch(`http://localhost:5000/api/join-game`, {
+            const response = await fetch('http://localhost:5000/api/join-game', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ gameCode, username }),
+                body: JSON.stringify({ 
+                    gameCode: code || gameCode, 
+                    username 
+                }),
             });
 
             if (!response.ok) {
                 throw new Error('Game not found');
             }
 
-            const gameData = await response.json();
-            onJoin(gameData);
+            const data = await response.json();
+            onJoin(data);
         } catch (err) {
             setError('Game not found. Please check the code and try again.');
         }
@@ -36,32 +51,51 @@ const JoinGame = ({ username, onJoin, onBack }) => {
             <div className="back-button" onClick={onBack}>
                 ← Back
             </div>
-            <div className="user-profile">
-                <div className="user-avatar">👤</div>
-                <span className="username">{username}</span>
-            </div>
             <div className="join-card">
                 <div className="join-content">
                     <h2>Join Game</h2>
-                    <div className="form-container">
-                        <div className="code-input-group">
-                            <input
-                                type="text"
-                                maxLength="6"
-                                value={gameCode}
-                                onChange={(e) => {
-                                    const value = e.target.value.toUpperCase();
-                                    setGameCode(value);
-                                    setError('');
-                                }}
-                                placeholder="ENTER CODE"
-                            />
-                            {error && <div className="error-message">{error}</div>}
-                        </div>
-                        <button className="join-button" onClick={handleSubmit}>
+                    
+                    {/* Manual code entry */}
+                    <div className="code-input-group">
+                        <input
+                            type="text"
+                            maxLength="6"
+                            value={gameCode}
+                            onChange={(e) => {
+                                setGameCode(e.target.value.toUpperCase());
+                                setError('');
+                            }}
+                            placeholder="ENTER CODE"
+                        />
+                        <button 
+                            className="join-button" 
+                            onClick={() => handleJoin()}
+                        >
                             Join Game
                         </button>
+                        {error && <div className="error-message">{error}</div>}
                     </div>
+
+                    {/* Available games list */}
+                    {activeGames.length > 0 && (
+                        <div className="available-games">
+                            <h3>Available Games</h3>
+                            <div className="games-list">
+                                {activeGames.map((game) => (
+                                    <div 
+                                        key={game.gameCode} 
+                                        className="game-item"
+                                        onClick={() => handleJoin(game.gameCode)}
+                                    >
+                                        <span className="game-code">{game.gameCode}</span>
+                                        <span className="player-count">
+                                            {game.playerCount} player{game.playerCount !== 1 ? 's' : ''}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

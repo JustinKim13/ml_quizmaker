@@ -1,34 +1,34 @@
 {
   "questions": [
     {
-      "question": "What happened to Firdaus at the end of 1974?",
+      "question": "What did I do to make sure Bayoumi wasn't following me?",
       "options": [
-        "executed",
-        "until",
-        "lay",
-        "her"
+        "leapt",
+        "shoulder",
+        "I",
+        "over my shoulder"
       ],
-      "correct_answer": "executed"
+      "correct_answer": "over my shoulder"
     },
     {
-      "question": "Why did I like my job?",
+      "question": "Who has recourse to the police?",
       "options": [
-        "despite everything",
-        "despite",
-        "everything",
-        "to"
+        "m",
+        "man",
+        "a weak man",
+        "I"
       ],
-      "correct_answer": "despite everything"
+      "correct_answer": "a weak man"
     },
     {
-      "question": "What was the warder's name?",
+      "question": "How did I find a job with one of the big industrial concerns?",
       "options": [
-        "a",
-        "Doctor! Doctor",
+        "these",
         "of",
-        "She"
+        "by dint of these e\ufb00orts",
+        "had"
       ],
-      "correct_answer": "Doctor! Doctor"
+      "correct_answer": "by dint of these e\ufb00orts"
     }
   ]
 }

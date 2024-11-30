@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const { exec, spawn } = require("child_process");
 const cors = require("cors");
+const { rimraf } = require('rimraf');
 
 // Define file paths at the top
 const QUESTIONS_FILE = path.join(__dirname, "ml_models/models/questions.json");
@@ -16,6 +17,9 @@ let questionsGenerated = false;
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Add at the top with other constants
+const activeGames = new Map(); // Stores game data including players
 
 // Storage configuration for multer
 const storage = multer.diskStorage({
@@ -32,106 +36,90 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// Add this middleware before multer processes the files
-app.post("/api/upload", (req, res, next) => {
-    try {
-        // 1. Clear PDF directory
-        const pdfDir = path.join(__dirname, "ml_models/data_preprocessing/pdf_files");
-        if (fs.existsSync(pdfDir)) {
-            fs.readdirSync(pdfDir).forEach(file => {
-                fs.unlinkSync(path.join(pdfDir, file));
-                console.log(`Cleared PDF: ${file}`);
-            });
-        }
-
-        // 2. Clear video outputs directory
-        const videoDir = path.join(__dirname, "ml_models/outputs/video_outputs");
-        if (fs.existsSync(videoDir)) {
-            fs.readdirSync(videoDir).forEach(file => {
-                fs.unlinkSync(path.join(videoDir, file));
-                console.log(`Cleared video output: ${file}`);
-            });
-        }
-
-        next();
-    } catch (error) {
-        console.error("Error clearing directories:", error);
-        res.status(500).json({ error: "Failed to clear old files" });
-    }
-}, upload.array("files", 5), async (req, res) => {
-    try {
-        console.log("Upload endpoint hit");
-        const files = req.files;
-        const videoUrl = req.body.videoUrl || '';
-        
-        console.log("Files received:", files);
-        console.log("Video URL received:", videoUrl);
-        
-        // Clear combined output and reset status
-        if (fs.existsSync(COMBINED_OUTPUT_FILE)) {
-            fs.writeFileSync(COMBINED_OUTPUT_FILE, '');
-        }
-        
-        fs.writeFileSync(QUESTIONS_FILE, JSON.stringify({ questions: [] }));
-
-        // Process PDFs first if they exist
-        if (files && files.length > 0) {
-            fs.writeFileSync(STATUS_FILE, JSON.stringify({
-                status: 'processing',
-                timestamp: new Date().toISOString(),
-                message: 'Reading PDF files...'
-            }));
-            
-            try {
-                await processPdfFiles(files.map(f => f.path));
-            } catch (error) {
-                console.error("Error processing PDFs:", error);
-                throw error;
+// Add this helper function
+const clearDirectory = (directory) => {
+    return new Promise((resolve, reject) => {
+        fs.rm(directory, { recursive: true, force: true }, (err) => {
+            if (err) {
+                reject(err);
+            } else {
+                // Recreate the empty directory
+                fs.mkdirSync(directory, { recursive: true });
+                resolve();
             }
-        }
+        });
+    });
+};
 
-        // Then process video if URL exists
-        if (videoUrl.trim()) {
-            fs.writeFileSync(STATUS_FILE, JSON.stringify({
-                status: 'processing',
-                timestamp: new Date().toISOString(),
-                message: 'Processing video content...'
-            }));
-            
-            try {
-                await processVideoUrl(videoUrl);
-            } catch (error) {
-                console.error("Error processing video:", error);
-                throw error;
+// Modify the upload endpoint
+app.post("/api/upload", async (req, res) => {
+    try {
+        // Clear the PDF directory before processing new files
+        await clearDirectory(UPLOAD_DIR);
+        
+        // Now proceed with the upload
+        upload.array("files")(req, res, async (err) => {
+            if (err) {
+                console.error("Upload error:", err);
+                return res.status(500).json({ error: "File upload failed" });
             }
-        }
 
-        // Update status for question generation
-        fs.writeFileSync(STATUS_FILE, JSON.stringify({
-            status: 'processing',
-            timestamp: new Date().toISOString(),
-            message: 'Generating quiz questions...'
-        }));
+            const gameCode = Math.random().toString(36).substr(2, 6).toUpperCase();
+            const username = req.body.username;
 
-        // Generate questions
-        try {
-            await generateQuestions();
-            res.status(200).json({ message: "Processing completed" });
-        } catch (error) {
-            console.error("Error generating questions:", error);
-            throw error;
-        }
+            console.log("Creating new game with host:", username);
+            console.log("Game code:", gameCode);
 
+            // Initialize game data with host player
+            activeGames.set(gameCode, {
+                players: [{ name: username, isHost: true }],
+                status: 'processing'
+            });
+
+            // First run the PDF text extraction script
+            const extractScript = path.join(__dirname, 'ml_models/data_preprocessing/extract_text_pdf.py');
+            const extractProcess = spawn('python3', [extractScript]);
+            
+            extractProcess.stdout.on('data', (data) => {
+                console.log('PDF Extraction:', data.toString());
+            });
+
+            extractProcess.stderr.on('data', (data) => {
+                console.error('PDF Extraction Error:', data.toString());
+            });
+
+            // After PDF extraction, run the question generation script
+            extractProcess.on('close', (code) => {
+                console.log(`PDF extraction completed with code ${code}`);
+                
+                // Now run the question generation script
+                const questionScript = path.join(__dirname, 'ml_models/models/t5_model.py');
+                const questionProcess = spawn('python3', [questionScript]);
+                
+                questionProcess.stdout.on('data', (data) => {
+                    console.log('Question Generation:', data.toString());
+                });
+
+                questionProcess.stderr.on('data', (data) => {
+                    console.error('Question Generation Error:', data.toString());
+                });
+
+                questionProcess.on('close', (code) => {
+                    console.log(`Question generation completed with code ${code}`);
+                });
+            });
+
+            console.log("Active games:", Array.from(activeGames.entries()));
+            
+            res.json({ 
+                gameCode,
+                players: activeGames.get(gameCode).players,
+                isHost: true
+            });
+        });
     } catch (error) {
-        console.error("Error in upload endpoint:", error);
-        fs.writeFileSync(STATUS_FILE, JSON.stringify({
-            status: 'error',
-            timestamp: new Date().toISOString(),
-            message: `Error: ${error.message}`
-        }));
-        if (!res.headersSent) {
-            res.status(500).json({ error: error.message });
-        }
+        console.error("Upload error:", error);
+        res.status(500).json({ error: "Failed to process files" });
     }
 });
 
@@ -316,3 +304,81 @@ function processPdfFiles(pdfFiles) {
         });
     });
 }
+
+// Add this endpoint to handle joining games
+app.post("/api/join-game", (req, res) => {
+    const { gameCode, username } = req.body;
+    console.log("Join attempt:", { gameCode, username });
+    
+    if (!activeGames.has(gameCode)) {
+        console.log("Game not found:", gameCode);
+        return res.status(404).json({ error: "Game not found" });
+    }
+
+    const game = activeGames.get(gameCode);
+    game.players.push({ name: username, isHost: false });
+    
+    console.log("Updated players for game:", gameCode, game.players);
+    
+    res.json({ 
+        gameCode,
+        players: game.players,
+        isHost: false
+    });
+});
+
+// Add an endpoint to get list of active games
+app.get("/api/active-games", (req, res) => {
+    const games = Array.from(activeGames.entries()).map(([code, game]) => ({
+        gameCode: code,
+        playerCount: game.players.length
+    }));
+    console.log("Active games:", games);
+    res.json({ games });
+});
+
+// Add this endpoint to get players for a specific game
+app.get("/api/game/:gameCode/players", (req, res) => {
+    const { gameCode } = req.params;
+    console.log("Getting players for game:", gameCode);
+    
+    const game = activeGames.get(gameCode);
+    console.log("Game data found:", game);
+    
+    if (!game) {
+        return res.status(404).json({ error: "Game not found" });
+    }
+    
+    console.log("Sending players:", game.players);
+    res.json({ players: game.players });
+});
+
+// Add this endpoint to start the game
+app.post("/api/game/:gameCode/start", (req, res) => {
+    const { gameCode } = req.params;
+    const game = activeGames.get(gameCode);
+    
+    if (!game) {
+        return res.status(404).json({ error: "Game not found" });
+    }
+    
+    game.status = 'started';
+    console.log(`Game ${gameCode} started`);
+    
+    res.json({ success: true });
+});
+
+// Modify the existing players endpoint to include game status
+app.get("/api/game/:gameCode/players", (req, res) => {
+    const { gameCode } = req.params;
+    const game = activeGames.get(gameCode);
+    
+    if (!game) {
+        return res.status(404).json({ error: "Game not found" });
+    }
+    
+    res.json({ 
+        players: game.players,
+        status: game.status
+    });
+});

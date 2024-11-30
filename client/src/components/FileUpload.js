@@ -19,17 +19,6 @@ const FileUpload = ({ setGameData, username, onBack }) => {
         }
         setError("");
 
-        const gameCode = Math.random().toString(36).substr(2, 6).toUpperCase();
-        const gameData = { 
-            playerName: username,
-            files, 
-            videoUrl, 
-            gameCode,
-            isProcessing: true
-        };
-
-        setGameData(gameData);
-
         const formData = new FormData();
         for (let file of files) {
             formData.append("files", file);
@@ -46,8 +35,17 @@ const FileUpload = ({ setGameData, username, onBack }) => {
             if (!response.ok) {
                 throw new Error('Upload failed');
             }
+
+            const data = await response.json();
+            setGameData({ 
+                ...data,
+                playerName: username,
+                isProcessing: true
+            });
+            
         } catch (err) {
             console.error("Upload error:", err);
+            setError("Failed to create game. Please try again.");
         }
     };
 

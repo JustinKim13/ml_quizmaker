@@ -133,4 +133,42 @@
         transform: translateY(0);
         opacity: 1;
     }
+}
+
+.available-games {
+    margin-top: 30px;
+    width: 100%;
+}
+
+.available-games h3 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+}
+
+.games-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.game-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.game-item:hover {
+    background: #e9ecef;
+    transform: translateY(-2px);
+}
+
+.player-count {
+    color: #6c757d;
+    font-size: 0.9em;
 } 
