@@ -123,7 +123,6 @@ const Lobby = ({ gameData, startGame, onBack }) => {
                                 style={{ width: `${progress}%` }}
                             ></div>
                         </div>
-                        <div className="spinner"></div>
                         <p className="status-message">{statusMessage}</p>
                     </div>
                 ) : questions ? (

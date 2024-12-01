@@ -7,10 +7,10 @@
     z-index: -1;
     background:
         radial-gradient(circle at 90% 10%, #4a90e2, transparent),  /* Sky blue */
-        radial-gradient(circle at 10% 90%, #42b9a4, transparent),  /* Soft teal */
-        radial-gradient(circle at 90% 10%, #81d4fa, transparent),  /* Light blue */
-        radial-gradient(circle at 50% 80%, #64b5f6, transparent),  /* Medium blue */
-        radial-gradient(circle at 10% 10%, #7986cb, transparent);  /* Soft indigo */
+        radial-gradient(circle at 10% 90%, #2ecc71, transparent),  /* Emerald green */
+        radial-gradient(circle at 90% 10%, #9b59b6, transparent),  /* Soft purple */
+        radial-gradient(circle at 50% 80%, #3498db, transparent),  /* Medium blue */
+        radial-gradient(circle at 10% 10%, #1abc9c, transparent);  /* Turquoise */
 
     background-blend-mode: darken;
     background-size: 200% 200%;
