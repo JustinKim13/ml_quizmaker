@@ -4,109 +4,114 @@ const fs = require("fs");
 const path = require("path");
 const { exec, spawn } = require("child_process");
 const cors = require("cors");
-const { rimraf } = require('rimraf');
 
-// Define file paths at the top
+// file paths
 const QUESTIONS_FILE = path.join(__dirname, "ml_models/models/questions.json");
 const UPLOAD_DIR = path.join(__dirname, "ml_models/data_preprocessing/pdf_files");
 const STATUS_FILE = path.join(__dirname, "ml_models/models/status.json");
-const COMBINED_OUTPUT_FILE = path.join(__dirname, "ml_models/outputs/combined_output.txt");
 
-let questionsGenerated = false;
+const app = express(); // create express app instance
+app.use(cors()); // allow cors
+app.use(express.json()); // parse json bodies
 
-const app = express();
-app.use(cors());
-app.use(express.json());
+const activeGames = new Map(); // store active games and players
 
-// Add at the top with other constants
-const activeGames = new Map(); // Stores game data including players
-
-// Storage configuration for multer
+// storage configuration for multer
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        if (!fs.existsSync(UPLOAD_DIR)) {
-            fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+        if (!fs.existsSync(UPLOAD_DIR)) { // check if upload directory exists
+            fs.mkdirSync(UPLOAD_DIR, { recursive: true }); // create it if not
         }
-        cb(null, UPLOAD_DIR);
+        cb(null, UPLOAD_DIR); // set destination
     },
     filename: (req, file, cb) => {
-        cb(null, `${Date.now()}-${file.originalname}`);
+        cb(null, `${Date.now()}-${file.originalname}`); // set unique filename
     },
 });
 
-const upload = multer({ storage });
+const upload = multer({ storage }); // create multer instance with storage configuration
 
-// Add this helper function
+// clear directory
 const clearDirectory = (directory) => {
     return new Promise((resolve, reject) => {
-        fs.rm(directory, { recursive: true, force: true }, (err) => {
+        fs.rm(directory, { recursive: true, force: true }, (err) => { // remove directory recursively
             if (err) {
-                reject(err);
+                reject(err); // reject promise if error
             } else {
                 // Recreate the empty directory
-                fs.mkdirSync(directory, { recursive: true });
-                resolve();
+                fs.mkdirSync(directory, { recursive: true }); // create directory
+                resolve(); // resolve promise
             }
         });
     });
 };
 
-// Modify the upload endpoint
+// upload endpoint
 app.post("/api/upload", async (req, res) => {
     try {
-        // Clear the PDF directory before processing new files
         await clearDirectory(UPLOAD_DIR);
+        // Also clear old questions file
+        if (fs.existsSync(QUESTIONS_FILE)) {
+            fs.writeFileSync(QUESTIONS_FILE, JSON.stringify({ questions: [] }));
+        }
         
-        // Now proceed with the upload
         upload.array("files")(req, res, async (err) => {
             if (err) {
                 console.error("Upload error:", err);
                 return res.status(500).json({ error: "File upload failed" });
             }
 
+            // create a random game code
             const gameCode = Math.random().toString(36).substr(2, 6).toUpperCase();
-            const username = req.body.username;
+            const username = req.body.username; // get username from request body
 
-            console.log("Creating new game with host:", username);
-            console.log("Game code:", gameCode);
-
-            // Initialize game data with host player
+            // initialize game data with host player
             activeGames.set(gameCode, {
                 players: [{ name: username, isHost: true }],
                 status: 'processing'
             });
 
-            // First run the PDF text extraction script
-            const extractScript = path.join(__dirname, 'ml_models/data_preprocessing/extract_text_pdf.py');
-            const extractProcess = spawn('python3', [extractScript]);
+            // run pdf extraction script
+            const extractScript = path.join(__dirname, 'ml_models/data_preprocessing/extract_text_pdf.py'); // get our script path
+            const extractProcess = spawn('python3', [extractScript]); // spawn python process
             
-            extractProcess.stdout.on('data', (data) => {
-                console.log('PDF Extraction:', data.toString());
-            });
-
-            extractProcess.stderr.on('data', (data) => {
+            // check if pdf extraction is successful
+            extractProcess.stdout.on('data', (data) => { // log stdout
+                console.log('PDF Extraction:', data.toString()); 
+            }); extractProcess.stderr.on('data', (data) => { // log stderr
                 console.error('PDF Extraction Error:', data.toString());
             });
 
-            // After PDF extraction, run the question generation script
-            extractProcess.on('close', (code) => {
+            // after pdf extraction, run question generation script
+            extractProcess.on('close', (code) => { // event listener that triggers when extraction is complete
                 console.log(`PDF extraction completed with code ${code}`);
                 
-                // Now run the question generation script
-                const questionScript = path.join(__dirname, 'ml_models/models/t5_model.py');
-                const questionProcess = spawn('python3', [questionScript]);
-                
-                questionProcess.stdout.on('data', (data) => {
-                    console.log('Question Generation:', data.toString());
-                });
+                const videoUrl = req.body.videoUrl; // get video url from request body  
+                if (videoUrl) { // if video url is provided
+                    const videoProcess = spawn('python3', [path.join(__dirname, 'ml_models/data_preprocessing/extract_text_url.py')]); // spawn python process
+                    
+                    videoProcess.stdin.write(videoUrl + '\n'); // write video url to stdin
+                    videoProcess.stdin.end(); // end stdin
 
-                questionProcess.stderr.on('data', (data) => {
-                    console.error('Question Generation Error:', data.toString());
-                });
+                    videoProcess.stdout.on('data', (data) => { // log stdout
+                        console.log('Video Processing:', data.toString());
+                    }); videoProcess.stderr.on('data', (data) => { // log stderr
+                        console.error('Video Processing Error:', data.toString());
+                    });
 
-                questionProcess.on('close', (code) => {
-                    console.log(`Question generation completed with code ${code}`);
-                });
+                    // generate questions after video processing is complete
+                    videoProcess.on('close', (code) => { // event listener that triggers when video processing is complete
+                        console.log(`Video processing completed with code ${code}`);
+                        // Update status to question generation
+                        activeGames.get(gameCode).status = 'Generating questions...';
+                        runQuestionGeneration();
+                    });
+                } else {
+                    // If no video, generate questions right after PDF processing
+                    // Update status to question generation
+                    activeGames.get(gameCode).status = 'Generating questions...';
+                    runQuestionGeneration();
+                }
             });
 
             console.log("Active games:", Array.from(activeGames.entries()));
@@ -382,3 +387,21 @@ app.get("/api/game/:gameCode/players", (req, res) => {
         status: game.status
     });
 });
+
+// Helper function to run question generation
+function runQuestionGeneration() {
+    const questionScript = path.join(__dirname, 'ml_models/models/t5_model.py');
+    const questionProcess = spawn('python3', [questionScript]);
+    
+    questionProcess.stdout.on('data', (data) => {
+        console.log('Question Generation:', data.toString());
+    });
+
+    questionProcess.stderr.on('data', (data) => {
+        console.error('Question Generation Error:', data.toString());
+    });
+
+    questionProcess.on('close', (code) => {
+        console.log(`Question generation completed with code ${code}`);
+    });
+}

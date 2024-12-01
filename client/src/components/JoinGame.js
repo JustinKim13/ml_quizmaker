@@ -48,6 +48,7 @@ const JoinGame = ({ username, onJoin, onBack }) => {
 
     return (
         <div className="join-container">
+            <div className="animated-background"></div>
             <div className="back-button" onClick={onBack}>
                 ← Back
             </div>

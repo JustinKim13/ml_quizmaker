@@ -34,6 +34,7 @@ function GamePlay({ questions, onFinish }) {
     if (gameCompleted) {
         return (
             <div className="game-container">
+                <div className="animated-background"></div>
                 <div className="game-content">
                     <div className="final-score">
                         <h2>Game Complete!</h2>
@@ -52,6 +53,7 @@ function GamePlay({ questions, onFinish }) {
 
     return (
         <div className="game-container">
+            <div className="animated-background"></div>
             <div className="game-content">
                 <div className="score-display">Score: {score}</div>
                 <div className="question-container">

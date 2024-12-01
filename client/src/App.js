@@ -5,6 +5,7 @@ import Lobby from "./components/Lobby";
 import GamePlay from "./components/GamePlay";
 import JoinGame from "./components/JoinGame";
 import './styles/shared/ButtonStyles.css';
+import './styles/Gradient.css';
 
 function App() {
     const [currentPage, setCurrentPage] = useState('landing');

@@ -1,34 +1,34 @@
 {
   "questions": [
     {
-      "question": "What did I do to make sure Bayoumi wasn't following me?",
+      "question": "What was the difference between oranges and tangerines?",
       "options": [
-        "leapt",
-        "shoulder",
-        "I",
-        "over my shoulder"
+        "because",
+        "tatty",
+        "cheaper",
+        "better"
       ],
-      "correct_answer": "over my shoulder"
+      "correct_answer": "cheaper"
     },
     {
-      "question": "Who has recourse to the police?",
+      "question": "What happened to me when he hit me in the belly?",
       "options": [
-        "m",
-        "man",
-        "a weak man",
-        "I"
+        "consciousness",
+        "slept",
+        "immediately",
+        "I lost consciousness immediately"
       ],
-      "correct_answer": "a weak man"
+      "correct_answer": "I lost consciousness immediately"
     },
     {
-      "question": "How did I find a job with one of the big industrial concerns?",
+      "question": "What was the common trait of the rulers?",
       "options": [
-        "these",
-        "of",
-        "by dint of these e\ufb00orts",
-        "had"
+        "avaricious",
+        "distorted",
+        "avaricious and distorted personality",
+        "personality"
       ],
-      "correct_answer": "by dint of these e\ufb00orts"
+      "correct_answer": "avaricious and distorted personality"
     }
   ]
 }

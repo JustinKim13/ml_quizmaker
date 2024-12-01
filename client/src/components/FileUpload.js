@@ -51,6 +51,7 @@ const FileUpload = ({ setGameData, username, onBack }) => {
 
     return (
         <div className="upload-container">
+            <div className="animated-background"></div>
             <div className="back-button" onClick={onBack}>
                 ← Back
             </div>

@@ -90,6 +90,7 @@ const Lobby = ({ gameData, startGame, onBack }) => {
 
     return (
         <div className="lobby">
+            <div className="animated-background"></div>
             <div className="back-button" onClick={onBack}>
                 ← Back
             </div>

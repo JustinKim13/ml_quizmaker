@@ -1,23 +1,20 @@
 .animated-background {
-    position: absolute;
+    position: fixed;
+    top: 0;
+    left: 0;
     width: 100vw;
-    /* Full viewport width */
     height: 100vh;
-    /* Full viewport height */
+    z-index: -1;
     background:
-        radial-gradient(circle at 10% 20%, #ee7752, transparent),
-        /* Vibrant orange */
-        radial-gradient(circle at 80% 30%, #e73c7e, transparent),
-        /* Pinkish red */
-        radial-gradient(circle at 50% 80%, #23a6d5, transparent),
-        /* Bright blue */
-        radial-gradient(circle at 10% 90%, #23d5ab, transparent),
-        /* Teal green */
-        radial-gradient(circle at 90% 10%, #23a6d5, transparent);
-    /* Repeated bright blue for balance */
+        radial-gradient(circle at 90% 10%, #4a90e2, transparent),  /* Sky blue */
+        radial-gradient(circle at 10% 90%, #42b9a4, transparent),  /* Soft teal */
+        radial-gradient(circle at 90% 10%, #81d4fa, transparent),  /* Light blue */
+        radial-gradient(circle at 50% 80%, #64b5f6, transparent),  /* Medium blue */
+        radial-gradient(circle at 10% 10%, #7986cb, transparent);  /* Soft indigo */
+
     background-blend-mode: darken;
     background-size: 200% 200%;
-    animation: meshGradient 10s ease infinite;
+    animation: meshGradient 15s ease infinite;
 }
 
 @keyframes meshGradient {

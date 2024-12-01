@@ -15,6 +15,7 @@ const LandingPage = ({ onStart }) => {
 
     return (
         <div className="landing-container">
+            <div className="animated-background"></div>
             <div className="landing-card">
                 <div className="landing-content">
                     <h2>Welcome to QuizClash</h2>
