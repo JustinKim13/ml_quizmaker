@@ -45,6 +45,12 @@ function App() {
         }
     };
 
+    const handleLeaveLobby = () => {
+        // Clear game data when leaving
+        setGameData(null);
+        setCurrentPage(gameData?.isHost ? 'upload' : 'join');
+    };
+
     // Render the appropriate component based on currentPage
     switch (currentPage) {
         case 'landing':
@@ -67,7 +73,7 @@ function App() {
                 <Lobby 
                     gameData={gameData}
                     startGame={startGame}
-                    onBack={() => setCurrentPage('upload')}
+                    onBack={handleLeaveLobby}
                 />
             );
             

@@ -68,7 +68,8 @@ app.post("/api/upload", async (req, res) => {
             // initialize game data with host player
             activeGames.set(gameCode, {
                 players: [{ name: username, isHost: true }],
-                status: 'processing'
+                status: 'processing',
+                host: username
             });
 
             // run pdf extraction script
@@ -334,10 +335,12 @@ app.post("/api/join-game", (req, res) => {
 
 // Add an endpoint to get list of active games
 app.get("/api/active-games", (req, res) => {
-    const games = Array.from(activeGames.entries()).map(([code, game]) => ({
-        gameCode: code,
-        playerCount: game.players.length
-    }));
+    const games = Array.from(activeGames.entries())
+        .filter(([_, game]) => game.players.some(p => p.isHost))
+        .map(([code, game]) => ({
+            gameCode: code,
+            playerCount: game.players.length
+        }));
     console.log("Active games:", games);
     res.json({ games });
 });
@@ -345,17 +348,20 @@ app.get("/api/active-games", (req, res) => {
 // Add this endpoint to get players for a specific game
 app.get("/api/game/:gameCode/players", (req, res) => {
     const { gameCode } = req.params;
-    console.log("Getting players for game:", gameCode);
-    
     const game = activeGames.get(gameCode);
-    console.log("Game data found:", game);
     
     if (!game) {
-        return res.status(404).json({ error: "Game not found" });
+        return res.status(404).json({ 
+            error: "Game not found",
+            hostLeft: true  // Indicate that the game no longer exists
+        });
     }
     
-    console.log("Sending players:", game.players);
-    res.json({ players: game.players });
+    res.json({ 
+        players: game.players,
+        status: game.status,
+        hostLeft: false
+    });
 });
 
 // Add this endpoint to start the game
@@ -371,21 +377,6 @@ app.post("/api/game/:gameCode/start", (req, res) => {
     console.log(`Game ${gameCode} started`);
     
     res.json({ success: true });
-});
-
-// Modify the existing players endpoint to include game status
-app.get("/api/game/:gameCode/players", (req, res) => {
-    const { gameCode } = req.params;
-    const game = activeGames.get(gameCode);
-    
-    if (!game) {
-        return res.status(404).json({ error: "Game not found" });
-    }
-    
-    res.json({ 
-        players: game.players,
-        status: game.status
-    });
 });
 
 // Helper function to run question generation
@@ -405,3 +396,35 @@ function runQuestionGeneration() {
         console.log(`Question generation completed with code ${code}`);
     });
 }
+
+// Add these new endpoints
+app.post("/api/game/:gameCode/leave", (req, res) => {
+    const { gameCode } = req.params;
+    const { username } = req.body;
+    
+    const game = activeGames.get(gameCode);
+    if (!game) {
+        return res.status(404).json({ error: "Game not found" });
+    }
+
+    // If host is leaving, set players to empty array
+    if (game.host === username) {
+        console.log(`Host ${username} left game ${gameCode}. Setting players to empty.`);
+        game.players = [];
+        return res.json({ 
+            message: "Host left",
+            wasHost: true,
+            hostLeft: true
+        });
+    }
+
+    // Otherwise, just remove the player
+    game.players = game.players.filter(player => player.name !== username);
+    console.log(`Player ${username} left game ${gameCode}. Remaining players:`, game.players);
+    
+    res.json({ 
+        message: "Successfully left the game",
+        wasHost: false,
+        hostLeft: false
+    });
+});

@@ -40,7 +40,12 @@ const JoinGame = ({ username, onJoin, onBack }) => {
             }
 
             const data = await response.json();
-            onJoin(data);
+            onJoin({
+                gameCode: code || gameCode,
+                playerName: username,
+                isHost: false,
+                players: data.players
+            });
         } catch (err) {
             setError('Game not found. Please check the code and try again.');
         }

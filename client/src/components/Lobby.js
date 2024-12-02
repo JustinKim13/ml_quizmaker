@@ -10,6 +10,7 @@ const Lobby = ({ gameData, startGame, onBack }) => {
         name: gameData?.playerName, 
         isHost: gameData?.isHost 
     }]);
+    const [hostLeft, setHostLeft] = useState(false);
 
     useEffect(() => {
         let pollInterval;
@@ -64,34 +65,81 @@ const Lobby = ({ gameData, startGame, onBack }) => {
     useEffect(() => {
         let pollInterval;
         
-        const pollPlayers = async () => {
-            if (!gameData?.gameCode) return;
-            
+        const checkGameStatus = async () => {
             try {
                 const response = await fetch(`http://localhost:5000/api/game/${gameData.gameCode}/players`);
-                const data = await response.json();
-                if (data.players) {
-                    setPlayers(data.players);
+                
+                if (!response.ok) {
+                    console.log("Game no longer exists - host likely left");
+                    setHostLeft(true);
+                    onBack();
+                    return;
                 }
+                
+                const data = await response.json();
+                setPlayers(data.players);
+                
+                const hostPlayer = data.players.find(p => p.isHost);
+                if (!hostPlayer) {
+                    console.log("Host left the game - returning to previous screen");
+                    setHostLeft(true);
+                    onBack();
+                    return;
+                }
+                
             } catch (error) {
-                console.error('Error fetching players:', error);
+                console.error('Error checking game status:', error);
+                setHostLeft(true);
+                onBack();
             }
         };
 
-        pollInterval = setInterval(pollPlayers, 2000);
-        pollPlayers();
+        pollInterval = setInterval(checkGameStatus, 1000);
+        checkGameStatus(); // Initial check
 
         return () => {
             if (pollInterval) {
                 clearInterval(pollInterval);
             }
         };
-    }, [gameData?.gameCode]);
+    }, [gameData.gameCode, onBack]);
+
+    useEffect(() => {
+        if (hostLeft && !gameData.isHost) {
+            alert("The host has left the game. You will be returned to the join screen.");
+        }
+    }, [hostLeft, gameData.isHost]);
+
+    const handleLeave = async () => {
+        try {
+            const response = await fetch(`http://localhost:5000/api/game/${gameData.gameCode}/leave`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: gameData.playerName
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to leave game');
+            }
+
+            const data = await response.json();
+            console.log(`Successfully left game. ${data.wasHost ? 'Game deleted' : 'Player removed'}`);
+            onBack();
+
+        } catch (error) {
+            console.error('Error leaving game:', error);
+            onBack();
+        }
+    };
 
     return (
         <div className="lobby">
             <div className="animated-background"></div>
-            <div className="back-button" onClick={onBack}>
+            <div className="back-button" onClick={handleLeave}>
                 ← Back
             </div>
             <div className="lobby-card">
