@@ -2,36 +2,36 @@ import React, { useState } from "react";
 import '../styles/GamePlay.css';
 
 function GamePlay({ questions, onFinish }) {
-    const [currentQuestion, setCurrentQuestion] = useState(0);
-    const [score, setScore] = useState(0);
-    const [showAnswer, setShowAnswer] = useState(false);
-    const [gameCompleted, setGameCompleted] = useState(false);
+    const [currentQuestion, setCurrentQuestion] = useState(0); // state for our current questions and answers to ask
+    const [score, setScore] = useState(0); // state to manage users' scores
+    const [showAnswer, setShowAnswer] = useState(false); // state to determine when and how long to show answer
+    const [gameCompleted, setGameCompleted] = useState(false); // state to set if game completed or not
 
-    if (!questions || questions.length === 0) {
+    if (!questions || questions.length === 0) { // if there's no questions, return descriptive text div
         return <div>No questions available</div>;
     }
 
-    const handleAnswer = (selectedOption) => {
-        setShowAnswer(true);
-        if (selectedOption === questions[currentQuestion].correct_answer) {
-            setScore((prev) => prev + 1);
+    const handleAnswer = (selectedOption) => { // function to handle how user's answer questions
+        setShowAnswer(true); // immediately show the user if they were correct or not
+        if (selectedOption === questions[currentQuestion].correct_answer) { // if user gets correct, update their score
+            setScore((prev) => prev + 1); // update score state by incrementing prev score by 1
         }
         
-        setTimeout(() => {
-            setShowAnswer(false);
-            if (currentQuestion + 1 < questions.length) {
+        setTimeout(() => { // set timeout for 2 seconds
+            setShowAnswer(false); // stop showing answer after 2 seconds
+            if (currentQuestion + 1 < questions.length) { // if there's another quefstion, set it to that by incrementing question state by 1
                 setCurrentQuestion((prev) => prev + 1);
             } else {
-                setGameCompleted(true);
+                setGameCompleted(true); // if no more questions to ask, set gameCompleted state to true
             }
         }, 2000);
     };
 
     const handlePlayAgain = () => {
-        onFinish();
+        onFinish(); // passed as a parameter so that it's implementation can be handled in App.js
     };
 
-    if (gameCompleted) {
+    if (gameCompleted) { // if gameCompleted state is true, show results page
         return (
             <div className="game-container">
                 <div className="animated-background"></div>
@@ -49,7 +49,7 @@ function GamePlay({ questions, onFinish }) {
         );
     }
 
-    const question = questions[currentQuestion];
+    const question = questions[currentQuestion]; // get currentQuestion from array
 
     return (
         <div className="game-container">
