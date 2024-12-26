@@ -2,29 +2,29 @@ import React, { useState, useEffect } from 'react';
 import '../styles/JoinGame.css';
 
 const JoinGame = ({ username, onJoin, onBack }) => {
-    const [gameCode, setGameCode] = useState('');
-    const [error, setError] = useState('');
-    const [activeGames, setActiveGames] = useState([]);
+    const [gameCode, setGameCode] = useState(''); // state to keep track of single gameCode that user is currently entering
+    const [error, setError] = useState(''); // state to keep track of error being sent
+    const [activeGames, setActiveGames] = useState([]); // list of active games, where each includes code and player count
 
-    useEffect(() => {
-        const fetchGames = async () => {
+    useEffect(() => { // side effect to fetch data (runs automatically after component has been rendered)
+        const fetchGames = async () => { // use async to synchronously go through code
             try {
-                const response = await fetch('http://localhost:5000/api/active-games');
-                const data = await response.json();
-                setActiveGames(data.games);
-            } catch (err) {
+                const response = await fetch('http://localhost:5000/api/active-games'); // first check active-games endpoint
+                const data = await response.json(); // get json response object from this endpoint
+                setActiveGames(data.games); // from the data json response, we can now take its games attribute and set our setActiveGames state to it
+            } catch (err) { // if any errors, catch them
                 console.error('Error fetching games:', err);
             }
         };
 
-        fetchGames();
-        const interval = setInterval(fetchGames, 5000); // Poll every 5 seconds
-        return () => clearInterval(interval);
+        fetchGames(); // call our function
+        const interval = setInterval(fetchGames, 5000); // poll every 5 seconds
+        return () => clearInterval(interval); // built-in JS that stops a timer of interval
     }, []);
 
-    const handleJoin = async (code) => {
+    const handleJoin = async (code) => { // takes in gameCode as input
         try {
-            const response = await fetch('http://localhost:5000/api/join-game', {
+            const response = await fetch('http://localhost:5000/api/join-game', { // make post request with our gameCodea and username to join-game endpoint
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -35,18 +35,18 @@ const JoinGame = ({ username, onJoin, onBack }) => {
                 }),
             });
 
-            if (!response.ok) {
+            if (!response.ok) { // throw error if response doesn't work
                 throw new Error('Game not found');
             }
 
-            const data = await response.json();
+            const data = await response.json(); // after our post request processes, get our data from response json object
             onJoin({
-                gameCode: code || gameCode,
+                gameCode: code || gameCode, 
                 playerName: username,
-                isHost: false,
-                players: data.players
+                isHost: false, // when joining, isHost is always going to be false
+                players: data.players // update list of players from data
             });
-        } catch (err) {
+        } catch (err) { // set error state accordingly
             setError('Game not found. Please check the code and try again.');
         }
     };

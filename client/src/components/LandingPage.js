@@ -2,11 +2,11 @@ import React, { useState } from "react";
 import '../styles/LandingPage.css';
 
 const LandingPage = ({ onStart }) => {
-    const [username, setUsername] = useState("");
-    const [error, setError] = useState("");
+    const [username, setUsername] = useState(""); // username state
+    const [error, setError] = useState(""); // error state
 
     const handleButtonClick = (action) => {
-        if (!username.trim()) {
+        if (!username.trim()) { // on button click, whether creating or joining a game, we'll first make sure they have a valid username
             setError("Please enter a username");
             return;
         }
