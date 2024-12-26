@@ -1,55 +1,54 @@
 import React, { useState } from "react";
 import '../styles/FileUpload.css';
 
+// react component for uploading files
 const FileUpload = ({ setGameData, username, onBack }) => {
-    const [files, setFiles] = useState([]);
-    const [videoUrl, setVideoUrl] = useState("");
-    const [error, setError] = useState("");
+    const [files, setFiles] = useState([]); // create state for storing uploaded PDF files      
+    const [videoUrl, setVideoUrl] = useState(""); // state for storing optional video URL
+    const [error, setError] = useState(""); // state for storing errors that occur
 
-    const handleRemoveFile = (indexToRemove) => {
-        setFiles(prevFiles => 
-            Array.from(prevFiles).filter((_, index) => index !== indexToRemove)
-        );
+    const handleRemoveFile = (indexToRemove) => { // function to remove files from upload
+        setFiles(prevFiles => Array.from(prevFiles).filter((_, index) => index !== indexToRemove)); // use setFiles to modify files state
     };
 
-    const handleSubmit = async () => {
-        if (!files.length && !videoUrl.trim()) {
-            setError("Please upload at least one file or provide a video URL");
+    const handleSubmit = async () => { // async makes function return a promise --  valid input -> resolution, invalid input -> rejection
+        if (!files.length && !videoUrl.trim()) { // if there's no files or only whitespace
+            setError("Please upload at least one file or provide a video URL"); // set error state
             return;
         }
-        setError("");
+        setError(""); // if no error occurs, set error state to empty string
 
-        const formData = new FormData();
-        for (let file of files) {
-            formData.append("files", file);
+        const formData = new FormData(); // create new instance of FormData object; saves pdfs, urls, and username
+        for (let file of files) { // iterate through files
+            formData.append("files", file); // append to formData object (key value pair of "files" : file)
         }
-        formData.append("videoUrl", videoUrl);
-        formData.append("username", username);
+        formData.append("videoUrl", videoUrl); // append videoUrl 
+        formData.append("username", username); // append username 
 
-        try {
-            const response = await fetch("http://localhost:5000/api/upload", {
-                method: "POST",
-                body: formData,
+        try { // after adding these, try to post them to upload endpoint
+            const response = await fetch("http://localhost:5000/api/upload", { // await allows us to wait for the post request to complete before proceeding to next line
+                method: "POST", 
+                body: formData, // post our formData to upload endpoint
             });
 
-            if (!response.ok) {
+            if (!response.ok) { // if response isn't okay, ie, promise is rejected, throw an error
                 throw new Error('Upload failed');
             }
 
-            const data = await response.json();
-            setGameData({ 
-                ...data,
-                playerName: username,
-                isProcessing: true
+            const data = await response.json(); // now that we know the response worked, we can get that data as a json object
+            setGameData({ // state update functon
+                ...data, // spread operator: takes all properties of data object which retains existing properties
+                playerName: username, // playername set to username
+                isProcessing: true // set isProcessing state to true
             });
             
-        } catch (err) {
+        } catch (err) { // if any error occurs, set our error state to it
             console.error("Upload error:", err);
             setError("Failed to create game. Please try again.");
         }
     };
 
-    return (
+    return ( // return html of our page
         <div className="upload-container">
             <div className="animated-background"></div>
             <div className="back-button" onClick={onBack}>
@@ -94,7 +93,7 @@ const FileUpload = ({ setGameData, username, onBack }) => {
                                                 onClick={() => handleRemoveFile(index)}
                                                 title="Remove file"
                                             >
-                                                ×
+                                                x
                                             </button>
                                         </div>
                                     </li>
