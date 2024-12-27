@@ -45,6 +45,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    margin-top: 5px;
+    margin-bottom: 5px;
 }
 
 .input-group input {
@@ -175,6 +177,7 @@
     display: flex;
     justify-content: center;
     position: relative;
+    margin-top: 10px;
 }
 
 .submit-button {
@@ -286,4 +289,37 @@
     position: absolute;
     width: 100%;
     bottom: -25px;
+}
+
+.private-game-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 5px;
+}
+
+.private-game-checkbox input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    margin-top: 2px;
+}
+
+.private-game-label {
+    font-size: 1em;
+    color: #2c3e50;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.url-input {
+    width: 100%;
+    max-width: 250px;
+    padding: 10px 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    font-size: 1em;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+    margin: 0;
 }

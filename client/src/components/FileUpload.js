@@ -110,18 +110,20 @@ const FileUpload = ({ setGameData, username, onBack }) => {
                                 setVideoUrl(e.target.value);
                                 setError("");
                             }}
+                            className="url-input"
                         />
                     </div>
 
-                    <div className="input-group">
-                        <label>
-                            <input
-                                type="checkbox"
-                                checked={isPrivate}
-                                onChange={() => setIsPrivate(!isPrivate)}
-                            />
+                    <div className="private-game-checkbox">
+                        <label htmlFor="privateGameCheckbox" className="private-game-label">
                             Private Game
                         </label>
+                        <input
+                            type="checkbox"
+                            checked={isPrivate}
+                            onChange={() => setIsPrivate(!isPrivate)}
+                            id="privateGameCheckbox"
+                        />
                     </div>
 
                     <div className="submit-wrapper">

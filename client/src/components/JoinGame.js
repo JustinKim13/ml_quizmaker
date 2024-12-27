@@ -24,7 +24,7 @@ const JoinGame = ({ username, onJoin, onBack }) => {
 
     const handleJoin = async (code) => { // takes in gameCode as input
         try {
-            const response = await fetch('http://localhost:5000/api/join-game', { // make post request with our gameCodea and username to join-game endpoint
+            const response = await fetch('http://localhost:5000/api/join-game', { // make post request with our gameCode and username to join-game endpoint
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -56,6 +56,11 @@ const JoinGame = ({ username, onJoin, onBack }) => {
             <div className="animated-background"></div>
             <div className="back-button" onClick={onBack}>
                 ← Back
+            </div>
+            {/* User Profile Section */}
+            <div className="user-profile">
+                <div className="user-avatar">👤</div>
+                <span className="username">{username}</span>
             </div>
             <div className="join-card">
                 <div className="join-content">
