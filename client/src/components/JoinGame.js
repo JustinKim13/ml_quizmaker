@@ -87,7 +87,9 @@ const JoinGame = ({ username, onJoin, onBack }) => {
                         <div className="available-games">
                             <h3>Available Games</h3>
                             <div className="games-list">
-                                {activeGames.map((game) => (
+                            {activeGames
+                                .filter((game) => !game.isPrivate) // only include public games
+                                .map((game) => (
                                     <div 
                                         key={game.gameCode} 
                                         className="game-item"

@@ -64,12 +64,14 @@ app.post("/api/upload", async (req, res) => {
             // create a random game code
             const gameCode = Math.random().toString(36).substr(2, 6).toUpperCase();
             const username = req.body.username; // get username from request body
+            const isPrivate = req.body.isPrivate === 'true' || req.body.isPrivate === true; // Ensure isPrivate is a boolean
 
             // initialize game data with host player
             activeGames.set(gameCode, {
                 players: [{ name: username, isHost: true }],
                 status: 'processing',
-                host: username
+                host: username, 
+                isPrivate: isPrivate
             });
 
             // run pdf extraction script
@@ -120,7 +122,8 @@ app.post("/api/upload", async (req, res) => {
             res.json({ 
                 gameCode,
                 players: activeGames.get(gameCode).players,
-                isHost: true
+                isHost: true, 
+                isPrivate: isPrivate
             });
         });
     } catch (error) {
@@ -210,107 +213,6 @@ app.listen(5000, () => {
     console.log("Server running on port 5000");
 });
 
-// Modify the generateQuestions function
-const generateQuestions = async () => {
-    console.log("Starting generateQuestions function...");
-    
-    // Reset status at start
-    fs.writeFileSync(STATUS_FILE, JSON.stringify({
-        status: 'starting',
-        timestamp: new Date().toISOString()
-    }));
-
-    return new Promise((resolve, reject) => {
-        const pythonScript = path.join(__dirname, "ml_models/models/t5_model.py");
-        console.log("Running Python script:", pythonScript);
-        
-        const pythonProcess = exec(`python3 ${pythonScript}`, (error, stdout, stderr) => {
-            if (error) {
-                console.error("Error executing Python script:", error);
-                reject(error);
-                return;
-            }
-            if (stderr) {
-                console.log("Python stderr:", stderr);
-            }
-            console.log("Python stdout:", stdout);
-            
-            // Check final status
-            try {
-                const status = JSON.parse(fs.readFileSync(STATUS_FILE, 'utf8'));
-                questionsGenerated = status.status === 'completed';
-                resolve(stdout);
-            } catch (err) {
-                console.error("Error reading final status:", err);
-                reject(err);
-            }
-        });
-
-        // Log real-time output
-        pythonProcess.stdout.on('data', (data) => {
-            console.log(`Python output: ${data}`);
-        });
-
-        pythonProcess.stderr.on('data', (data) => {
-            console.log(`Python error: ${data}`);
-        });
-    });
-};
-
-// Helper function to process video URL
-function processVideoUrl(videoUrl) {
-    return new Promise((resolve, reject) => {
-        const pythonScript = path.join(__dirname, "ml_models/data_preprocessing/extract_text_url.py");
-        const pythonProcess = spawn('python3', [pythonScript]);
-
-        // Write the URL to the Python script's stdin
-        pythonProcess.stdin.write(videoUrl + '\n');
-        pythonProcess.stdin.end();
-
-        pythonProcess.stdout.on('data', (data) => {
-            console.log('Video Processing output:', data.toString());
-        });
-
-        pythonProcess.stderr.on('data', (data) => {
-            console.error('Video Processing error:', data.toString());
-        });
-
-        pythonProcess.on('close', (code) => {
-            if (code === 0) {
-                resolve();
-            } else {
-                reject(new Error(`Video processing failed with code ${code}`));
-            }
-        });
-    });
-}
-
-// Helper function to process PDF files
-function processPdfFiles(pdfFiles) {
-    return new Promise((resolve, reject) => {
-        const pythonScript = path.join(__dirname, "ml_models/data_preprocessing/extract_text_pdf.py");
-        const pdfFilesArg = pdfFiles.join(",");
-        
-        const pythonProcess = spawn('python3', [pythonScript, pdfFilesArg]);
-
-        pythonProcess.stdout.on('data', (data) => {
-            console.log('PDF Processing output:', data.toString());
-        });
-
-        pythonProcess.stderr.on('data', (data) => {
-            console.error('PDF Processing error:', data.toString());
-        });
-
-        pythonProcess.on('close', (code) => {
-            if (code === 0) {
-                resolve();
-            } else {
-                reject(new Error(`PDF processing failed with code ${code}`));
-            }
-        });
-    });
-}
-
 // Add this endpoint to handle joining games
 app.post("/api/join-game", (req, res) => {
     const { gameCode, username } = req.body;
@@ -336,12 +238,16 @@ app.post("/api/join-game", (req, res) => {
 // Add an endpoint to get list of active games
 app.get("/api/active-games", (req, res) => {
     const games = Array.from(activeGames.entries())
-        .filter(([_, game]) => game.players.some(p => p.isHost))
+        .filter(([_, game]) => game.players.length > 0) // Ensure the game has players
         .map(([code, game]) => ({
             gameCode: code,
-            playerCount: game.players.length
-        }));
-    console.log("Active games:", games);
+            playerCount: game.players.length,
+            isPrivate: game.isPrivate ?? false, // Default to false if undefined
+        }))
+        .filter((game) => !game.isPrivate); // Filter only public games
+
+    console.log("Filtered active games:", games);
+
     res.json({ games });
 });
 

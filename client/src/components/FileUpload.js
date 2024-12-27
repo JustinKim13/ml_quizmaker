@@ -6,6 +6,7 @@ const FileUpload = ({ setGameData, username, onBack }) => {
     const [files, setFiles] = useState([]); // create state for storing uploaded PDF files      
     const [videoUrl, setVideoUrl] = useState(""); // state for storing optional video URL
     const [error, setError] = useState(""); // state for storing errors that occur
+    const [isPrivate, setIsPrivate] = useState(false)
 
     const handleRemoveFile = (indexToRemove) => { // function to remove files from upload
         setFiles(prevFiles => Array.from(prevFiles).filter((_, index) => index !== indexToRemove)); // use setFiles to modify files state
@@ -24,6 +25,7 @@ const FileUpload = ({ setGameData, username, onBack }) => {
         }
         formData.append("videoUrl", videoUrl); // append videoUrl 
         formData.append("username", username); // append username 
+        formData.append("isPrivate", isPrivate)
 
         try { // after adding these, try to post them to upload endpoint
             const response = await fetch("http://localhost:5000/api/upload", { // await allows us to wait for the post request to complete before proceeding to next line
@@ -48,12 +50,10 @@ const FileUpload = ({ setGameData, username, onBack }) => {
         }
     };
 
-    return ( // return html of our page
+    return (
         <div className="upload-container">
             <div className="animated-background"></div>
-            <div className="back-button" onClick={onBack}>
-                ← Back
-            </div>
+            <div className="back-button" onClick={onBack}>← Back</div>
             <div className="user-profile">
                 <div className="user-avatar">👤</div>
                 <span className="username">{username}</span>
@@ -75,10 +75,10 @@ const FileUpload = ({ setGameData, username, onBack }) => {
                             />
                             📄 Choose PDF Files
                         </label>
-                        
+
                         {files.length > 0 && (
                             <ul className="file-list">
-                                {Array.from(files).map((file, index) => (
+                                {files.map((file, index) => (
                                     <li key={index}>
                                         <div className="file-info">
                                             <span className="file-icon">📄</span>
@@ -88,10 +88,9 @@ const FileUpload = ({ setGameData, username, onBack }) => {
                                             <span className="file-size">
                                                 {(file.size / 1024 / 1024).toFixed(2)} MB
                                             </span>
-                                            <button 
+                                            <button
                                                 className="remove-file-button"
                                                 onClick={() => handleRemoveFile(index)}
-                                                title="Remove file"
                                             >
                                                 x
                                             </button>
@@ -112,6 +111,17 @@ const FileUpload = ({ setGameData, username, onBack }) => {
                                 setError("");
                             }}
                         />
+                    </div>
+
+                    <div className="input-group">
+                        <label>
+                            <input
+                                type="checkbox"
+                                checked={isPrivate}
+                                onChange={() => setIsPrivate(!isPrivate)}
+                            />
+                            Private Game
+                        </label>
                     </div>
 
                     <div className="submit-wrapper">
