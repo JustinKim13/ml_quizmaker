@@ -1,11 +1,46 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import '../styles/GamePlay.css';
 
-function GamePlay({ questions, onFinish }) {
+function GamePlay({ questions, onFinish, gameData }) {
     const [currentQuestion, setCurrentQuestion] = useState(0); // state for our current questions and answers to ask
     const [score, setScore] = useState(0); // state to manage users' scores
     const [showAnswer, setShowAnswer] = useState(false); // state to determine when and how long to show answer
     const [gameCompleted, setGameCompleted] = useState(false); // state to set if game completed or not
+    const [ws, setWs] = useState(null);
+    const [playerScores, setPlayerScores] = useState({});
+
+    useEffect(() => {
+        const websocket = new WebSocket('ws://localhost:5000');
+        
+        websocket.onopen = () => {
+            websocket.send(JSON.stringify({
+                type: 'join_game',
+                gameCode: gameData.gameCode,
+                playerName: gameData.playerName
+            }));
+        };
+
+        websocket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            
+            if (data.type === 'player_progress') {
+                // Update other players' progress
+                setPlayerScores(prev => ({
+                    ...prev,
+                    [data.playerName]: {
+                        score: data.score,
+                        currentQuestion: data.currentQuestion
+                    }
+                }));
+            }
+        };
+
+        setWs(websocket);
+
+        return () => {
+            websocket.close();
+        };
+    }, [gameData.gameCode, gameData.playerName]);
 
     if (!questions || questions.length === 0) { // if there's no questions, return descriptive text div
         return <div>No questions available</div>;
@@ -25,6 +60,15 @@ function GamePlay({ questions, onFinish }) {
                 setGameCompleted(true); // if no more questions to ask, set gameCompleted state to true
             }
         }, 2000);
+
+        // Broadcast progress to other players
+        ws.send(JSON.stringify({
+            type: 'answer_submitted',
+            gameCode: gameData.gameCode,
+            playerName: gameData.playerName,
+            score: score + (selectedOption === questions[currentQuestion].correct_answer ? 1 : 0),
+            currentQuestion: currentQuestion + 1
+        }));
     };
 
     const handlePlayAgain = () => {
@@ -55,6 +99,15 @@ function GamePlay({ questions, onFinish }) {
         <div className="game-container">
             <div className="animated-background"></div>
             <div className="game-content">
+                <div className="scoreboard">
+                    {Object.entries(playerScores).map(([player, data]) => (
+                        <div key={player} className="player-score">
+                            <span>{player}</span>
+                            <span>Score: {data.score}</span>
+                            <span>Question: {data.currentQuestion + 1}/{questions.length}</span>
+                        </div>
+                    ))}
+                </div>
                 <div className="score-display">Score: {score}</div>
                 <div className="question-container">
                     <h2 className="question">{question.question}</h2>

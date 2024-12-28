@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const { exec, spawn } = require("child_process");
 const cors = require("cors");
+const WebSocket = require('ws');
 
 // file paths
 const QUESTIONS_FILE = path.join(__dirname, "ml_models/models/questions.json");
@@ -216,9 +217,61 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-app.listen(5000, () => {
-    console.log("Server running on port 5000");
+const server = require('http').createServer(app);
+const wss = new WebSocket.Server({ server });
+
+// Store WebSocket connections with their game codes
+const gameConnections = new Map(); // gameCode -> Set of WebSocket connections
+
+wss.on('connection', (ws) => {
+    let userGameCode = null;
+
+    ws.on('message', async (message) => {
+        try {
+            const data = JSON.parse(message);
+            console.log('Received WebSocket message:', data);
+            
+            switch (data.type) {
+                case 'join_game':
+                    userGameCode = data.gameCode;
+                    if (!gameConnections.has(userGameCode)) {
+                        gameConnections.set(userGameCode, new Set());
+                    }
+                    gameConnections.get(userGameCode).add(ws);
+                    console.log(`Player joined game ${userGameCode}`);
+                    break;
+
+                case 'start_game':
+                    console.log(`Starting game ${data.gameCode}`);
+                    // Broadcasts empty game_started message
+                    broadcastToGame(data.gameCode, {
+                        type: 'game_started'
+                    });
+                    break;
+            }
+        } catch (error) {
+            console.error('WebSocket message error:', error);
+        }
+    });
+
+    ws.on('close', () => {
+        if (userGameCode && gameConnections.has(userGameCode)) {
+            gameConnections.get(userGameCode).delete(ws);
+            console.log(`Player left game ${userGameCode}`);
+        }
+    });
 });
+
+function broadcastToGame(gameCode, data) {
+    console.log(`Broadcasting to game ${gameCode}:`, data);
+    if (gameConnections.has(gameCode)) {
+        gameConnections.get(gameCode).forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify(data));
+            }
+        });
+    }
+}
 
 // Add this endpoint to handle joining games
 app.post("/api/join-game", (req, res) => {
@@ -278,16 +331,15 @@ app.get("/api/game/:gameCode/players", (req, res) => {
 });
 
 // Add this endpoint to start the game
-app.post("/api/game/:gameCode/start", (req, res) => {
-    const { gameCode } = req.params;
-    const game = activeGames.get(gameCode);
+app.post("/api/game/:gameCode/start", async (req, res) => {
+    // This endpoint includes questions in the broadcast
+    const questionsResponse = await fetch("http://localhost:5000/api/questions");
+    const questionsData = await questionsResponse.json();
     
-    if (!game) {
-        return res.status(404).json({ error: "Game not found" });
-    }
-    
-    game.status = 'started';
-    console.log(`Game ${gameCode} started`);
+    broadcastToGame(gameCode, {
+        type: 'game_started',
+        questions: questionsData.questions
+    });
     
     res.json({ success: true });
 });
@@ -340,4 +392,8 @@ app.post("/api/game/:gameCode/leave", (req, res) => {
         wasHost: false,
         hostLeft: false
     });
+});
+
+server.listen(5000, () => {
+    console.log("Server running on port 5000");
 });

@@ -8,6 +8,7 @@ const Lobby = ({ gameData, startGame, onBack }) => {
     const [progress, setProgress] = useState(0);
     const [players, setPlayers] = useState([{ name: gameData?.playerName, isHost: gameData?.isHost }]);
     const [hostLeft, setHostLeft] = useState(false);
+    const [ws, setWs] = useState(null);
 
     // Handle page refresh or back navigation
     useEffect(() => {
@@ -152,6 +153,37 @@ const Lobby = ({ gameData, startGame, onBack }) => {
         }
     }, [hostLeft, gameData.isHost]);
 
+    useEffect(() => {
+        const websocket = new WebSocket('ws://localhost:5000');
+        
+        websocket.onopen = () => {
+            console.log('WebSocket Connected');
+            websocket.send(JSON.stringify({
+                type: 'join_game',
+                gameCode: gameData.gameCode,
+                playerName: gameData.playerName
+            }));
+        };
+
+        websocket.onmessage = async (event) => {
+            const data = JSON.parse(event.data);
+            console.log('Received WebSocket message:', data);
+            
+            if (data.type === 'game_started') {
+                console.log('Game started message received');
+                await startGame();
+            }
+        };
+
+        setWs(websocket);
+
+        return () => {
+            if (websocket) {
+                websocket.close();
+            }
+        };
+    }, [gameData.gameCode, gameData.playerName, startGame]);
+
     const handleLeave = async () => {
         try {
             const response = await fetch(`http://localhost:5000/api/game/${gameData.gameCode}/leave`, {
@@ -172,6 +204,17 @@ const Lobby = ({ gameData, startGame, onBack }) => {
             console.error('Error leaving game:', error);
             onBack();
         }
+    };
+
+    const handleStartGame = async () => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            console.log('Sending game start message');
+            ws.send(JSON.stringify({
+                type: 'start_game',
+                gameCode: gameData.gameCode
+            }));
+        }
+        await startGame(); // Host also starts the game
     };
 
     return (
@@ -213,7 +256,7 @@ const Lobby = ({ gameData, startGame, onBack }) => {
                         <div className="success-icon">✓</div>
                         <h3>Questions are ready!</h3>
                         {gameData.isHost ? (
-                            <button onClick={startGame} className="start-game-button">
+                            <button onClick={handleStartGame} className="start-game-button">
                                 Start Game
                             </button>
                         ) : (
