@@ -9,6 +9,7 @@ const cors = require("cors");
 const QUESTIONS_FILE = path.join(__dirname, "ml_models/models/questions.json");
 const UPLOAD_DIR = path.join(__dirname, "ml_models/data_preprocessing/pdf_files");
 const STATUS_FILE = path.join(__dirname, "ml_models/models/status.json");
+const COMBINED_OUTPUT_FILE = path.join(__dirname, "ml_models/outputs/combined_output.txt");
 
 const app = express(); // create express app instance
 app.use(cors()); // allow cors
@@ -73,6 +74,12 @@ app.post("/api/upload", async (req, res) => {
                 host: username, 
                 isPrivate: isPrivate
             });
+
+            // Clear combined_output.txt at the start of the upload process
+            if (fs.existsSync(COMBINED_OUTPUT_FILE)) {
+                fs.writeFileSync(COMBINED_OUTPUT_FILE, '');
+                console.log("Cleared combined_output.txt at the start of the upload process.");
+            }
 
             // run pdf extraction script
             const extractScript = path.join(__dirname, 'ml_models/data_preprocessing/extract_text_pdf.py'); // get our script path
