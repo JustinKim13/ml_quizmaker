@@ -8,6 +8,9 @@ function GamePlay({ questions, onFinish, gameData }) {
     const [gameCompleted, setGameCompleted] = useState(false); // state to set if game completed or not
     const [ws, setWs] = useState(null);
     const [playerScores, setPlayerScores] = useState({});
+    const [selectedAnswer, setSelectedAnswer] = useState(null); // Track current selection
+    const [timeLeft, setTimeLeft] = useState(30); // 30 second timer
+    const [timerActive, setTimerActive] = useState(true); // Control timer state
 
     useEffect(() => {
         const websocket = new WebSocket('ws://localhost:5000');
@@ -42,34 +45,105 @@ function GamePlay({ questions, onFinish, gameData }) {
         };
     }, [gameData.gameCode, gameData.playerName]);
 
-    if (!questions || questions.length === 0) { // if there's no questions, return descriptive text div
-        return <div>No questions available</div>;
+    // Handle page navigation and refresh
+    useEffect(() => {
+        const handleBeforeUnload = async (event) => {
+            event.preventDefault();
+            try {
+                await fetch(`http://localhost:5000/api/game/${gameData.gameCode}/leave`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username: gameData.playerName }),
+                });
+                console.log("User removed from game due to page reload or navigation.");
+            } catch (error) {
+                console.error("Error notifying server of user leaving:", error);
+            }
+            return (event.returnValue = "Are you sure you want to leave?");
+        };
+
+        const handlePopState = async () => {
+            try {
+                await fetch(`http://localhost:5000/api/game/${gameData.gameCode}/leave`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username: gameData.playerName }),
+                });
+                console.log("User removed from game due to back navigation.");
+                onFinish(); // Return to lobby
+            } catch (error) {
+                console.error("Error notifying server of user leaving on back:", error);
+            }
+        };
+
+        // Add event listeners
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        window.addEventListener("popstate", handlePopState);
+
+        // Cleanup listeners on unmount
+        return () => {
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+            window.removeEventListener("popstate", handlePopState);
+        };
+    }, [gameData.gameCode, gameData.playerName, onFinish]);
+
+    // Timer effect
+    useEffect(() => {
+        let timer;
+        if (questions && questions[currentQuestion] && timerActive && timeLeft > 0) {
+            timer = setInterval(() => {
+                setTimeLeft((prev) => prev - 1);
+            }, 1000);
+        } else if (timeLeft === 0 && questions && questions[currentQuestion] && timerActive) {
+            setShowAnswer(true);
+            setTimerActive(false);
+            
+            if (selectedAnswer === questions[currentQuestion].correct_answer) {
+                setScore((prev) => prev + 1);
+            }
+
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'answer_submitted',
+                    gameCode: gameData.gameCode,
+                    playerName: gameData.playerName,
+                    score: score + (selectedAnswer === questions[currentQuestion].correct_answer ? 1 : 0),
+                    currentQuestion: currentQuestion + 1
+                }));
+            }
+
+            setTimeout(() => {
+                setShowAnswer(false);
+                if (currentQuestion + 1 < questions.length) {
+                    setCurrentQuestion((prev) => prev + 1);
+                    setSelectedAnswer(null);
+                    setTimeLeft(30);
+                    setTimerActive(true);
+                } else {
+                    setGameCompleted(true);
+                }
+            }, 2000);
+        }
+
+        return () => clearInterval(timer);
+    }, [timeLeft, timerActive, currentQuestion, questions, selectedAnswer, ws, gameData.gameCode, gameData.playerName, score]);
+
+    const handleAnswer = (option) => {
+        if (!showAnswer) {
+            setSelectedAnswer(option);
+        }
+    };
+
+    if (!questions || !questions.length || !questions[currentQuestion]) {
+        return <div className="game-container">
+            <div className="animated-background"></div>
+            <div className="game-content">
+                <div>Loading questions...</div>
+            </div>
+        </div>;
     }
 
-    const handleAnswer = (selectedOption) => { // function to handle how user's answer questions
-        setShowAnswer(true); // immediately show the user if they were correct or not
-        if (selectedOption === questions[currentQuestion].correct_answer) { // if user gets correct, update their score
-            setScore((prev) => prev + 1); // update score state by incrementing prev score by 1
-        }
-        
-        setTimeout(() => { // set timeout for 2 seconds
-            setShowAnswer(false); // stop showing answer after 2 seconds
-            if (currentQuestion + 1 < questions.length) { // if there's another quefstion, set it to that by incrementing question state by 1
-                setCurrentQuestion((prev) => prev + 1);
-            } else {
-                setGameCompleted(true); // if no more questions to ask, set gameCompleted state to true
-            }
-        }, 2000);
-
-        // Broadcast progress to other players
-        ws.send(JSON.stringify({
-            type: 'answer_submitted',
-            gameCode: gameData.gameCode,
-            playerName: gameData.playerName,
-            score: score + (selectedOption === questions[currentQuestion].correct_answer ? 1 : 0),
-            currentQuestion: currentQuestion + 1
-        }));
-    };
+    const question = questions[currentQuestion];
 
     const handlePlayAgain = () => {
         onFinish(); // passed as a parameter so that it's implementation can be handled in App.js
@@ -93,8 +167,6 @@ function GamePlay({ questions, onFinish, gameData }) {
         );
     }
 
-    const question = questions[currentQuestion]; // get currentQuestion from array
-
     return (
         <div className="game-container">
             <div className="animated-background"></div>
@@ -109,20 +181,27 @@ function GamePlay({ questions, onFinish, gameData }) {
                     ))}
                 </div>
                 <div className="score-display">Score: {score}</div>
+                
+                {/* Timer display */}
+                <div className="timer" style={{ color: timeLeft <= 5 ? 'red' : 'inherit' }}>
+                    Time Left: {timeLeft}s
+                </div>
+
                 <div className="question-container">
                     <h2 className="question">{question.question}</h2>
                     <div className="answers-grid">
                         {question.options.map((option, i) => (
                             <button 
                                 key={i} 
-                                className={`answer-button ${
-                                    showAnswer 
+                                className={`answer-button 
+                                    ${selectedAnswer === option ? 'selected' : ''} 
+                                    ${showAnswer 
                                         ? option === question.correct_answer 
                                             ? 'correct' 
                                             : 'incorrect'
                                         : ''
-                                }`}
-                                onClick={() => !showAnswer && handleAnswer(option)}
+                                    }`}
+                                onClick={() => handleAnswer(option)}
                                 disabled={showAnswer}
                             >
                                 {option}
