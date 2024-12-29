@@ -181,4 +181,20 @@
 /* Add transition for smooth color changes */
 .answer-button {
     transition: background-color 0.3s ease;
+}
+
+.answer-button:hover {
+    background-color: #f8f9fa;  /* Light gray background */
+}
+
+/* When button is both selected and hovered */
+.answer-button.selected:hover {
+    background-color: #3a7bc1;  /* Slightly darker than the selected blue */
+    color: white;  /* Keep text white only for selected state */
+}
+
+/* Keep the text white for correct/incorrect states */
+.answer-button.correct:hover,
+.answer-button.incorrect:hover {
+    color: white;
 } 
