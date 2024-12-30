@@ -9,7 +9,7 @@ function GamePlay({ questions, onFinish, gameData }) {
     const [ws, setWs] = useState(null);
     const [playerScores, setPlayerScores] = useState({});
     const [selectedAnswer, setSelectedAnswer] = useState(null); // Track current selection
-    const [timeLeft, setTimeLeft] = useState(30); // 30 second timer
+    const [timeLeft, setTimeLeft] = useState(10); // 30 second timer
     const [timerActive, setTimerActive] = useState(true); // Control timer state
 
     useEffect(() => {
@@ -117,7 +117,7 @@ function GamePlay({ questions, onFinish, gameData }) {
                 if (currentQuestion + 1 < questions.length) {
                     setCurrentQuestion((prev) => prev + 1);
                     setSelectedAnswer(null);
-                    setTimeLeft(30);
+                    setTimeLeft(10);
                     setTimerActive(true);
                 } else {
                     setGameCompleted(true);
@@ -149,6 +149,10 @@ function GamePlay({ questions, onFinish, gameData }) {
         onFinish(); // passed as a parameter so that it's implementation can be handled in App.js
     };
 
+    const handleLobby = () => {
+        onFinish();
+    }
+
     if (gameCompleted) { // if gameCompleted state is true, show results page
         return (
             <div className="game-container">
@@ -158,9 +162,16 @@ function GamePlay({ questions, onFinish, gameData }) {
                         <h2>Game Complete!</h2>
                         <p>Final Score: {score} out of {questions.length}</p>
                         <p>Percentage: {((score / questions.length) * 100).toFixed(1)}%</p>
-                        <button onClick={handlePlayAgain} className="play-again-button">
-                            Play Again
-                        </button>
+                        {gameData.isHost && ( 
+                            <button onClick={handlePlayAgain} className="play-again-button">
+                                Play Again
+                            </button>
+                        )}
+                        {!gameData.isHost && (
+                            <button onClick={handleLobby} className="play-again-button">
+                                Return to Lobby
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

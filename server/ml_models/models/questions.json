@@ -1,34 +1,34 @@
 {
   "questions": [
     {
-      "question": "What kind of viral stuff would you post on Tiktok?",
+      "question": "What did I see when I looked into her eyes?",
       "options": [
-        "All kinds of viral. Tiktok-y type stuff",
-        "viral",
-        "TikTok",
-        "Tiktok"
+        "white",
+        "whiter",
+        "two rings of pure white",
+        "rings"
       ],
-      "correct_answer": "All kinds of viral. Tiktok-y type stuff"
+      "correct_answer": "two rings of pure white"
     },
     {
-      "question": "What did you do to fix racism?",
+      "question": "Who else would hold her head so high as she walked?",
       "options": [
-        "posted that black square",
-        "black",
-        "posted",
-        "square"
+        "queen",
+        "goddess",
+        "woman",
+        "a queen, or a goddess"
       ],
-      "correct_answer": "posted that black square"
+      "correct_answer": "a queen, or a goddess"
     },
     {
-      "question": "How have you been Christian?",
+      "question": "What did I see men do when they invoked Allah's name?",
       "options": [
-        "how",
-        "How",
-        "How am I",
-        "doing"
+        "nodding their heads",
+        "heads",
+        "Option 3",
+        "them"
       ],
-      "correct_answer": "How am I"
+      "correct_answer": "nodding their heads"
     }
   ]
 }
