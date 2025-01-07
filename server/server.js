@@ -73,7 +73,11 @@ app.post("/api/upload", async (req, res) => {
                 players: [{ name: username, isHost: true }],
                 status: 'processing',
                 host: username, 
-                isPrivate: isPrivate
+                isPrivate: isPrivate,
+                questions: [],
+                currentQuestion: 0,
+                timer: null,
+                timeLeft: 10,
             });
 
             // Clear combined_output.txt at the start of the upload process
@@ -243,10 +247,20 @@ wss.on('connection', (ws) => {
 
                 case 'start_game':
                     console.log(`Starting game ${data.gameCode}`);
-                    // Broadcasts empty game_started message
-                    broadcastToGame(data.gameCode, {
-                        type: 'game_started'
-                    });
+                    const game = activeGames.get(data.gameCode);
+                    if (game) {
+                        const questionsResponse = await fetch("http://localhost:5000/api/questions");
+                        const questionsData = await questionsResponse.json();
+                        game.questions = questionsData.questions;
+
+                        game.currentQuestion = 0;
+                        startGameTimer(data.gameCode);
+                        // broadcast game started
+                        broadcastToGame(data.gameCode, {
+                            type: 'game_started',
+                            questions: 'game.questions',
+                        });
+                    }
                     break;
             }
         } catch (error) {
@@ -271,6 +285,51 @@ function broadcastToGame(gameCode, data) {
             }
         });
     }
+}
+
+function startGameTimer(gameCode) {
+    const game = activeGames.get(gameCode);
+
+    if (!game) return;
+
+    if (game.timer) {
+        clearInterval(game.timer); // clear existing timer if any
+    }
+
+    game.timeLeft = 10; // initial time of 10 seconds
+    game.timer = setInterval(() => {
+        if (game.timeLeft > 0) {
+            game.timeLeft -= 1; // if time left, decrement by 1
+
+            broadcastToGame(gameCode, {
+                type: 'timer_update',
+                timeLeft: game.timeLeft,
+                currentQuestion: game.currentQuestion,
+            });
+        } else {
+            clearInterval(game.timer);
+
+            const currentQuestion = game.currentQuestion || 0;
+            broadcastToGame(gameCode, {
+                type: 'show_answer',
+                correctAnswer: game.questions[currentQuestion].correct_answer,
+                currentQuestion,
+            });
+
+            setTimeout(() => {
+                if (currentQuestion + 1 < game.questions.length) {
+                    game.currentQuestion = currentQuestion + 1;
+                    game.timeLeft = 10;
+                    startGameTimer(gameCode);
+                } else { // end game if not enough questions left
+                    broadcastToGame(gameCode, {
+                        type: 'game_completed',
+                    });
+                    //activeGames.delete(gameCode); // remove game from active
+                }
+            }, 2000);
+        }
+    }, 1000); // update every second
 }
 
 // Add this endpoint to handle joining games

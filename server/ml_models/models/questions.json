@@ -1,34 +1,34 @@
 {
   "questions": [
     {
-      "question": "What did I see when I looked into her eyes?",
+      "question": "What did I know about prostitutes?",
       "options": [
-        "white",
-        "whiter",
-        "two rings of pure white",
-        "rings"
+        "prostitute",
+        "prices",
+        "all of us were prostitutes who sold themselves at varying prices",
+        "prostitutes"
       ],
-      "correct_answer": "two rings of pure white"
+      "correct_answer": "all of us were prostitutes who sold themselves at varying prices"
     },
     {
-      "question": "Who else would hold her head so high as she walked?",
+      "question": "What did I always leave the table without satisfying my hunger?",
       "options": [
-        "queen",
-        "goddess",
-        "woman",
-        "a queen, or a goddess"
+        "rabbit",
+        "hunger",
+        "hare",
+        "cony"
       ],
-      "correct_answer": "a queen, or a goddess"
+      "correct_answer": "rabbit"
     },
     {
-      "question": "What did I see men do when they invoked Allah's name?",
+      "question": "What did I want to say to my uncle?",
       "options": [
-        "nodding their heads",
-        "heads",
-        "Option 3",
-        "them"
+        "that I loved him",
+        "loved",
+        "that",
+        "him"
       ],
-      "correct_answer": "nodding their heads"
+      "correct_answer": "that I loved him"
     }
   ]
 }
