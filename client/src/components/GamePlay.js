@@ -187,7 +187,7 @@ function GamePlay({ questions, onFinish, gameData }) {
                 
                 {/* Timer display */}
                 <div className="timer" style={{ color: timeLeft <= 5 ? 'red' : 'inherit' }}>
-                    Time Left: {timeLeft}s
+                    {timeLeft > 0 ? `Time Left: ${timeLeft}s` : "Time's Up!"}
                 </div>
 
                 <div className="question-container">
