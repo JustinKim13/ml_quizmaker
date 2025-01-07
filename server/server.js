@@ -262,6 +262,23 @@ wss.on('connection', (ws) => {
                         });
                     }
                     break;
+                case 'next_question': {
+                    const currentGame = activeGames.get(data.gameCode);
+                    if (currentGame) {
+                        currentGame.currentQuestion = data.currentQuestion; // Update to next question
+                        broadcastToGame(data.gameCode, {
+                            type: "next_question",
+                            currentQuestion: currentGame.currentQuestion,
+                        });
+                
+                        // Start the timer ONLY after the host triggers "Next Question"
+                        startGameTimer(data.gameCode);
+                    } else {
+                        console.error(`Game not found for gameCode: ${data.gameCode}`);
+                    }
+                    break;
+                }
+                    
             }
         } catch (error) {
             console.error('WebSocket message error:', error);
@@ -293,13 +310,13 @@ function startGameTimer(gameCode) {
     if (!game) return;
 
     if (game.timer) {
-        clearInterval(game.timer); // clear existing timer if any
+        clearInterval(game.timer); // Clear existing timer if any
     }
 
-    game.timeLeft = 10; // initial time of 10 seconds
+    game.timeLeft = 10; // Initial time of 10 seconds
     game.timer = setInterval(() => {
         if (game.timeLeft > 0) {
-            game.timeLeft -= 1; // if time left, decrement by 1
+            game.timeLeft -= 1; // Decrement time
 
             broadcastToGame(gameCode, {
                 type: 'timer_update',
@@ -310,26 +327,25 @@ function startGameTimer(gameCode) {
             clearInterval(game.timer);
 
             const currentQuestion = game.currentQuestion || 0;
+
+            // Ensure the current question is within bounds
+            if (currentQuestion >= game.questions.length) {
+                broadcastToGame(gameCode, {
+                    type: 'game_completed',
+                });
+                activeGames.delete(gameCode); // Clean up game state
+                return;
+            }
+
             broadcastToGame(gameCode, {
                 type: 'show_answer',
                 correctAnswer: game.questions[currentQuestion].correct_answer,
                 currentQuestion,
             });
 
-            setTimeout(() => {
-                if (currentQuestion + 1 < game.questions.length) {
-                    game.currentQuestion = currentQuestion + 1;
-                    game.timeLeft = 10;
-                    startGameTimer(gameCode);
-                } else { // end game if not enough questions left
-                    broadcastToGame(gameCode, {
-                        type: 'game_completed',
-                    });
-                    //activeGames.delete(gameCode); // remove game from active
-                }
-            }, 2000);
+            // Don't restart the timer here; wait for "Next Question" from the host
         }
-    }, 1000); // update every second
+    }, 1000); // Update every second
 }
 
 // Add this endpoint to handle joining games

@@ -44,26 +44,24 @@ function GamePlay({ questions, onFinish, gameData }) {
 
             if (data.type === 'show_answer') {
                 setShowAnswer(true);
-
+                setTimeLeft(null); // Pause the timer after showing the answer
                 if (selectedAnswerRef.current === data.correctAnswer) {
                     setScore((prevScore) => prevScore + 1);
-                }                
+                }
+            }            
 
-
-                console.log("correctAnswer: " + data.correctAnswer); // debugging
-                console.log("selectedAnswerRef: " + selectedAnswerRef.current);                
-
-                setTimeout(() => {
-                    setShowAnswer(false);
-                    setUiSelectedAnswer(null); // Reset for the next question
-                    if (data.currentQuestion + 1 < questions.length) {
-                        setCurrentQuestion(data.currentQuestion + 1);
-                        setTimeLeft(10);
-                    } else {
-                        setGameCompleted(true);
-                    }
-                }, 2000);
-            }
+            if (data.type === "next_question") {
+                setShowAnswer(false);
+                setUiSelectedAnswer(null);
+            
+                // Only reset timer when the next question is explicitly triggered
+                if (data.currentQuestion < questions.length) {
+                    setCurrentQuestion(data.currentQuestion);
+                    setTimeLeft(10); // Reset the timer immediately
+                } else {
+                    setGameCompleted(true);
+                }
+            }            
 
             if (data.type === 'game_completed') {
                 setGameCompleted(true);
@@ -135,6 +133,20 @@ function GamePlay({ questions, onFinish, gameData }) {
         </div>;
     }
 
+    const nextQuestion = () => {
+        if (ws && gameData.isHost) {
+            ws.send(
+                JSON.stringify({
+                    type: "next_question",
+                    gameCode: gameData.gameCode,
+                    currentQuestion: currentQuestion + 1, // Increment the question
+                })
+            );
+            setTimeLeft(null); // Pause timer
+        }
+    };
+    
+
     const question = questions[currentQuestion];
 
     const handlePlayAgain = () => {
@@ -189,28 +201,33 @@ function GamePlay({ questions, onFinish, gameData }) {
                 <div className="timer" style={{ color: timeLeft <= 5 ? 'red' : 'inherit' }}>
                     {timeLeft > 0 ? `Time Left: ${timeLeft}s` : "Time's Up!"}
                 </div>
-
                 <div className="question-container">
                     <h2 className="question">{question.question}</h2>
                     <div className="answers-grid">
-                    {question.options.map((option, i) => (
-                        <button 
-                            key={i} 
-                            className={`answer-button 
-                                ${uiSelectedAnswer === option ? 'selected' : ''}
-                                ${showAnswer 
-                                    ? option === question.correct_answer 
-                                        ? 'correct' 
-                                        : 'incorrect'
-                                    : ''
-                                }`}
-                            onClick={() => handleAnswer(option)}
-                            disabled={showAnswer}
-                        >
-                            {option}
-                        </button>
-                    ))}
+                        {question.options.map((option, i) => (
+                            <button 
+                                key={i} 
+                                className={`answer-button 
+                                    ${uiSelectedAnswer === option ? 'selected' : ''}
+                                    ${showAnswer 
+                                        ? option === question.correct_answer 
+                                            ? 'correct' 
+                                            : 'incorrect'
+                                        : ''
+                                    }`}
+                                onClick={() => handleAnswer(option)}
+                                disabled={showAnswer}
+                            >
+                                {option}
+                            </button>
+                        ))}
                     </div>
+                    {/* Add the Next Question button here */}
+                    {showAnswer && gameData.isHost && (
+                        <button onClick={nextQuestion} className="next-question-button">
+                            Next Question
+                        </button>
+                    )}
                 </div>
                 <div className="progress">
                     Question {currentQuestion + 1} of {questions.length}

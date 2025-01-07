@@ -1,34 +1,34 @@
 {
   "questions": [
     {
-      "question": "What did I know about prostitutes?",
+      "question": "What did I spit on?",
       "options": [
-        "prostitute",
-        "prices",
-        "all of us were prostitutes who sold themselves at varying prices",
-        "prostitutes"
+        "Option 3",
+        "piece",
+        "a piece of newspaper",
+        "newspapers"
       ],
-      "correct_answer": "all of us were prostitutes who sold themselves at varying prices"
+      "correct_answer": "a piece of newspaper"
     },
     {
-      "question": "What did I always leave the table without satisfying my hunger?",
+      "question": "What did he do with the ten pound note?",
       "options": [
-        "rabbit",
-        "hunger",
-        "hare",
-        "cony"
+        "put out his hand and took it from me",
+        "hand",
+        "took",
+        "away"
       ],
-      "correct_answer": "rabbit"
+      "correct_answer": "put out his hand and took it from me"
     },
     {
-      "question": "What did I want to say to my uncle?",
+      "question": "What did my father always keep in his hand?",
       "options": [
-        "that I loved him",
-        "loved",
-        "that",
-        "him"
+        "something behind",
+        "something",
+        "colour",
+        "Option 3"
       ],
-      "correct_answer": "that I loved him"
+      "correct_answer": "something behind"
     }
   ]
 }
