@@ -1,34 +1,34 @@
 {
   "questions": [
     {
-      "question": "What did I spit on?",
+      "question": "Which Italian fascist leader was known as \u2018Il Duce?",
+      "options": [
+        "Italian",
+        "Mussolini",
+        "fascist",
+        "Il Duce"
+      ],
+      "correct_answer": "Mussolini"
+    },
+    {
+      "question": "What country imports camels from?",
       "options": [
         "Option 3",
-        "piece",
-        "a piece of newspaper",
-        "newspapers"
+        "Option 2",
+        "country",
+        "Saudi Arabia"
       ],
-      "correct_answer": "a piece of newspaper"
+      "correct_answer": "Saudi Arabia"
     },
     {
-      "question": "What did he do with the ten pound note?",
+      "question": "What is the rarest M&M color?",
       "options": [
-        "put out his hand and took it from me",
-        "hand",
-        "took",
-        "away"
+        "color",
+        "Brown",
+        "Robert Brown",
+        "little"
       ],
-      "correct_answer": "put out his hand and took it from me"
-    },
-    {
-      "question": "What did my father always keep in his hand?",
-      "options": [
-        "something behind",
-        "something",
-        "colour",
-        "Option 3"
-      ],
-      "correct_answer": "something behind"
+      "correct_answer": "Brown"
     }
   ]
 }

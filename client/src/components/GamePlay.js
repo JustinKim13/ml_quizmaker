@@ -9,8 +9,10 @@ function GamePlay({ questions, onFinish, gameData }) {
     const [ws, setWs] = useState(null);
     const [playerScores, setPlayerScores] = useState({});
     const selectedAnswerRef = useRef(null);
-    const [timeLeft, setTimeLeft] = useState(10); // 30 second timer
+    const [timeLeft, setTimeLeft] = useState(10); 
     const [uiSelectedAnswer, setUiSelectedAnswer] = useState(null); // allws us to immediately update the ui of selected answer instead of waiting to re-render state
+    const [playerCount, setPlayerCount] = useState(0) ;
+    const [playersAnswered, setPlayersAnswered] = useState(0);
 
 
     useEffect(() => { // initialize our game websocket at localhost
@@ -26,6 +28,7 @@ function GamePlay({ questions, onFinish, gameData }) {
 
         websocket.onmessage = (event) => { // fired when data is received
             const data = JSON.parse(event.data); // get data as JSON object from response
+            console.log("Received WebSocket message:", data);
             
             if (data.type === 'player_progress') {
                 // Update other players' progress
@@ -36,6 +39,15 @@ function GamePlay({ questions, onFinish, gameData }) {
                         currentQuestion: data.currentQuestion
                     }
                 }));
+            }
+
+            if (data.type === 'player_count') {
+                setPlayerCount(data.playerCount);
+            }
+
+            if (data.type === 'player_answered') {
+                console.log('Updating playersAnswered with:', data.playersAnswered);
+                setPlayersAnswered(data.playersAnswered);
             }
 
             if (data.type === 'timer_update') {
@@ -53,6 +65,7 @@ function GamePlay({ questions, onFinish, gameData }) {
             if (data.type === "next_question") {
                 setShowAnswer(false);
                 setUiSelectedAnswer(null);
+                setPlayersAnswered(0);
             
                 // Only reset timer when the next question is explicitly triggered
                 if (data.currentQuestion < questions.length) {
@@ -73,7 +86,7 @@ function GamePlay({ questions, onFinish, gameData }) {
         return () => {
             websocket.close();
         };
-    }, [gameData.gameCode, gameData.playerName]);
+    }, [gameData.gameCode, gameData.playerName, questions.length]);
 
     // Handle page navigation and refresh
     useEffect(() => {
@@ -121,6 +134,15 @@ function GamePlay({ questions, onFinish, gameData }) {
         if (!showAnswer) {
             selectedAnswerRef.current = option; // Store the selected answer in the ref
             setUiSelectedAnswer(option); // Update UI immediately
+
+            if (ws) {
+                ws.send(JSON.stringify({
+                    type: 'submit_answer',
+                    gameCode: gameData.gameCode,
+                    playerName: gameData.playerName,
+                    answer: option,
+                }))
+            }
         }
     };    
 
@@ -228,6 +250,9 @@ function GamePlay({ questions, onFinish, gameData }) {
                             Next Question
                         </button>
                     )}
+                </div>
+                <div className="answerCount">
+                    Players Answered: {playersAnswered} / {playerCount}
                 </div>
                 <div className="progress">
                     Question {currentQuestion + 1} of {questions.length}

@@ -243,6 +243,12 @@ wss.on('connection', (ws) => {
                     }
                     gameConnections.get(userGameCode).add(ws);
                     console.log(`Player joined game ${userGameCode}`);
+
+                    // Broadcast updated player count
+                    broadcastToGame(userGameCode, {
+                        type: 'player_count',
+                        playerCount: gameConnections.get(userGameCode).size,
+                    });
                     break;
 
                 case 'start_game':
@@ -262,10 +268,52 @@ wss.on('connection', (ws) => {
                         });
                     }
                     break;
+
+                case 'submit_answer': {
+                    const { playerName, gameCode} = data;
+                    const game = activeGames.get(data.gameCode);
+
+                    if (!game.answeredPlayers) {
+                        game.answeredPlayers = new Set();
+                    }
+            
+                    // Add player to the set of answered players
+                    game.answeredPlayers.add(playerName);
+
+                    console.log(`Player ${playerName} answered. Total players: ${game.answeredPlayers.size}`);
+
+                    if (game) {
+                        broadcastToGame(data.gameCode, {
+                            type: 'player_answered',
+                            playersAnswered: game.answeredPlayers.size,
+                        });
+                        if (game.answeredPlayers.size === game.playerCount) { // if all players have answered, set time to 0
+                            clearInterval(game.timer);
+                            game.timeLeft = 0;
+
+                            broadcastToGame(gameCode, {
+                                type: 'timer_update',
+                                timeLeft: 0,
+                                currentQuestion: game.currentQuestion,
+                            })
+
+                            broadcastToGame(gameCode, {
+                                type: 'show_answer',
+                                correctAnswer: game.questions[game.currentQuestion].correct_answer,
+                                currentQuestion: game.currentQuestion,
+                            })
+                            
+                        }
+                    }
+                    break;
+                }
+                
                 case 'next_question': {
                     const currentGame = activeGames.get(data.gameCode);
                     if (currentGame) {
                         currentGame.currentQuestion = data.currentQuestion; // Update to next question
+                        currentGame.answeredPlayers = new Set(); // Reset answered players
+                        
                         broadcastToGame(data.gameCode, {
                             type: "next_question",
                             currentQuestion: currentGame.currentQuestion,
