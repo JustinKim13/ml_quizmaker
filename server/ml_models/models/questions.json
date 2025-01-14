@@ -1,34 +1,34 @@
 {
   "questions": [
     {
-      "question": "Which Italian fascist leader was known as \u2018Il Duce?",
+      "question": "What is the main ingredient in falafel?",
       "options": [
-        "Italian",
-        "Mussolini",
-        "fascist",
-        "Il Duce"
+        "Pineapple",
+        "Ananas comosus",
+        "juice",
+        "Chickpea"
       ],
-      "correct_answer": "Mussolini"
+      "correct_answer": "Pineapple"
     },
     {
-      "question": "What country imports camels from?",
+      "question": "What is the largest lizard?",
       "options": [
+        "lizard",
+        "Komodo",
+        "dragon",
+        "Komodo dragon"
+      ],
+      "correct_answer": "Komodo dragon"
+    },
+    {
+      "question": "What is the name of the largest supermarket chain in the US?",
+      "options": [
+        "city",
         "Option 3",
-        "Option 2",
-        "country",
-        "Saudi Arabia"
+        "Kroger Co.",
+        "supermarket"
       ],
-      "correct_answer": "Saudi Arabia"
-    },
-    {
-      "question": "What is the rarest M&M color?",
-      "options": [
-        "color",
-        "Brown",
-        "Robert Brown",
-        "little"
-      ],
-      "correct_answer": "Brown"
+      "correct_answer": "Kroger Co."
     }
   ]
 }

@@ -13,6 +13,7 @@ function GamePlay({ questions, onFinish, gameData }) {
     const [uiSelectedAnswer, setUiSelectedAnswer] = useState(null); // allws us to immediately update the ui of selected answer instead of waiting to re-render state
     const [playerCount, setPlayerCount] = useState(0) ;
     const [playersAnswered, setPlayersAnswered] = useState(0);
+    const [hasAnswered, setHasAnswered] = useState(false);
 
 
     useEffect(() => { // initialize our game websocket at localhost
@@ -66,6 +67,7 @@ function GamePlay({ questions, onFinish, gameData }) {
                 setShowAnswer(false);
                 setUiSelectedAnswer(null);
                 setPlayersAnswered(0);
+                setHasAnswered(false);
             
                 // Only reset timer when the next question is explicitly triggered
                 if (data.currentQuestion < questions.length) {
@@ -134,6 +136,7 @@ function GamePlay({ questions, onFinish, gameData }) {
         if (!showAnswer) {
             selectedAnswerRef.current = option; // Store the selected answer in the ref
             setUiSelectedAnswer(option); // Update UI immediately
+            setHasAnswered(true);
 
             if (ws) {
                 ws.send(JSON.stringify({
@@ -238,7 +241,7 @@ function GamePlay({ questions, onFinish, gameData }) {
                                         : ''
                                     }`}
                                 onClick={() => handleAnswer(option)}
-                                disabled={showAnswer}
+                                disabled={showAnswer || hasAnswered} // Disable if already answered or showing answers
                             >
                                 {option}
                             </button>
