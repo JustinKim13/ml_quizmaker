@@ -1,34 +1,34 @@
 {
   "questions": [
     {
+      "question": "What is the smallest unit of memory?",
+      "options": [
+        "dried",
+        "kB",
+        "kilobyte",
+        "unit"
+      ],
+      "correct_answer": "kilobyte"
+    },
+    {
       "question": "What is the main ingredient in falafel?",
       "options": [
-        "Pineapple",
         "Ananas comosus",
+        "ananas",
         "juice",
-        "Chickpea"
+        "Pineapple"
       ],
       "correct_answer": "Pineapple"
     },
     {
-      "question": "What is the largest lizard?",
+      "question": "What country imports camels from?",
       "options": [
-        "lizard",
-        "Komodo",
-        "dragon",
-        "Komodo dragon"
-      ],
-      "correct_answer": "Komodo dragon"
-    },
-    {
-      "question": "What is the name of the largest supermarket chain in the US?",
-      "options": [
-        "city",
+        "country",
+        "Option 2",
         "Option 3",
-        "Kroger Co.",
-        "supermarket"
+        "Saudi Arabia"
       ],
-      "correct_answer": "Kroger Co."
+      "correct_answer": "Saudi Arabia"
     }
   ]
 }

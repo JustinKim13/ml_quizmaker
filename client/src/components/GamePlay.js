@@ -14,7 +14,7 @@ function GamePlay({ questions, onFinish, gameData }) {
     const [playerCount, setPlayerCount] = useState(0) ;
     const [playersAnswered, setPlayersAnswered] = useState(0);
     const [hasAnswered, setHasAnswered] = useState(false);
-
+    const timeToAnswerRef = useRef(10); // Ref to store the time immediately
 
     useEffect(() => { // initialize our game websocket at localhost
         const websocket = new WebSocket('ws://localhost:5000');
@@ -47,8 +47,9 @@ function GamePlay({ questions, onFinish, gameData }) {
             }
 
             if (data.type === 'player_answered') {
-                console.log('Updating playersAnswered with:', data.playersAnswered);
                 setPlayersAnswered(data.playersAnswered);
+                timeToAnswerRef.current = data.timeLeft;
+                console.log("On initial set", data);
             }
 
             if (data.type === 'timer_update') {
@@ -58,11 +59,24 @@ function GamePlay({ questions, onFinish, gameData }) {
             if (data.type === 'show_answer') {
                 setShowAnswer(true);
                 setTimeLeft(null); // Pause the timer after showing the answer
+            
                 if (selectedAnswerRef.current === data.correctAnswer) {
-                    setScore((prevScore) => prevScore + 1);
+                    const minPoints = 650;
+                    const maxPoints = 1000;
+                    const totalTime = 10;
+            
+                    // Use the ref value to get the latest time
+                    const remainingTime = Math.max(0, timeToAnswerRef.current); // Ensure non-negative remaining time
+            
+                    // Calculate points
+                    const points = minPoints + (maxPoints - minPoints) * (remainingTime / totalTime);
+            
+                    // Update the score
+                    setScore((prevScore) => prevScore + Math.floor(points)); // Round down the points
+                    console.log(`Points Earned: ${Math.floor(points)} for Remaining Time: ${remainingTime}`);
                 }
-            }            
-
+            }
+                        
             if (data.type === "next_question") {
                 setShowAnswer(false);
                 setUiSelectedAnswer(null);

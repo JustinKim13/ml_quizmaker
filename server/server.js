@@ -286,6 +286,7 @@ wss.on('connection', (ws) => {
                         broadcastToGame(data.gameCode, {
                             type: 'player_answered',
                             playersAnswered: game.answeredPlayers.size,
+                            timeLeft: game.timeLeft,
                         });
                         if (game.answeredPlayers.size === game.playerCount) { // if all players have answered, set time to 0
                             clearInterval(game.timer);
@@ -302,7 +303,6 @@ wss.on('connection', (ws) => {
                                 correctAnswer: game.questions[game.currentQuestion].correct_answer,
                                 currentQuestion: game.currentQuestion,
                             })
-                            
                         }
                     }
                     break;
