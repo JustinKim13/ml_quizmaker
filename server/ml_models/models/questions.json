@@ -1,34 +1,34 @@
 {
   "questions": [
     {
-      "question": "What is the smallest unit of memory?",
+      "question": "What is the name of the smallest country in the world?",
       "options": [
-        "dried",
-        "kB",
-        "kilobyte",
-        "unit"
+        "Vatican City",
+        "USA",
+        "City",
+        "Option 3"
       ],
-      "correct_answer": "kilobyte"
+      "correct_answer": "Vatican City"
     },
     {
-      "question": "What is the main ingredient in falafel?",
+      "question": "What is the largest lizard?",
       "options": [
-        "Ananas comosus",
-        "ananas",
-        "juice",
-        "Pineapple"
+        "dragon",
+        "lizard",
+        "Komodo",
+        "Komodo dragon"
       ],
-      "correct_answer": "Pineapple"
+      "correct_answer": "Komodo dragon"
     },
     {
-      "question": "What country imports camels from?",
+      "question": "Which team holds the record for the most Super Bowl appearances?",
       "options": [
-        "country",
-        "Option 2",
+        "NFL",
         "Option 3",
-        "Saudi Arabia"
+        "New England Patriots",
+        "England"
       ],
-      "correct_answer": "Saudi Arabia"
+      "correct_answer": "New England Patriots"
     }
   ]
 }

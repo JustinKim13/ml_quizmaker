@@ -213,3 +213,32 @@
 .next-question-button:hover {
     background-color: #0056b3;
 }
+
+.answerCount {
+    text-align: center;
+    margin: 10px 0;
+}
+
+.players-answered-text {
+    font-family: 'Roboto', sans-serif; /* Replace with your preferred font */
+    font-size: 14px;
+    color: #4caf50;
+    margin-bottom: 5px;
+}
+
+.progress-bar {
+    width: 60%; /* Make it smaller and centered */
+    height: 8px;
+    background-color: #f0f0f0;
+    border-radius: 5px;
+    margin: 0 auto;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4caf50, #8bc34a); /* Cooler gradient effect */
+    transition: width 0.3s ease-in-out;
+    border-radius: 5px;
+}

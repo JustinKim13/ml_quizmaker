@@ -14,7 +14,8 @@ function GamePlay({ questions, onFinish, gameData }) {
     const [playerCount, setPlayerCount] = useState(0) ;
     const [playersAnswered, setPlayersAnswered] = useState(0);
     const [hasAnswered, setHasAnswered] = useState(false);
-    const timeToAnswerRef = useRef(10); // Ref to store the time immediately
+    const playerTimesRef = useRef({});
+
 
     useEffect(() => { // initialize our game websocket at localhost
         const websocket = new WebSocket('ws://localhost:5000');
@@ -48,9 +49,10 @@ function GamePlay({ questions, onFinish, gameData }) {
 
             if (data.type === 'player_answered') {
                 setPlayersAnswered(data.playersAnswered);
-                timeToAnswerRef.current = data.timeLeft;
-                console.log("On initial set", data);
-            }
+                playerTimesRef.current[data.playerName] = data.playerTimeLeft; // Store player-specific timeLeft
+                console.log(`Player ${data.playerName} timeLeft recorded as:`, data.playerTimeLeft);
+                console.log('full data:', data);
+            }                          
 
             if (data.type === 'timer_update') {
                 setTimeLeft(data.timeLeft);
@@ -61,21 +63,21 @@ function GamePlay({ questions, onFinish, gameData }) {
                 setTimeLeft(null); // Pause the timer after showing the answer
             
                 if (selectedAnswerRef.current === data.correctAnswer) {
-                    const minPoints = 650;
+                    const minPoints = 750;
                     const maxPoints = 1000;
                     const totalTime = 10;
             
-                    // Use the ref value to get the latest time
-                    const remainingTime = Math.max(0, timeToAnswerRef.current); // Ensure non-negative remaining time
+                    // Use player-specific recorded time
+                    const remainingTime = Math.max(0, playerTimesRef.current[gameData.playerName] || 0);
             
                     // Calculate points
                     const points = minPoints + (maxPoints - minPoints) * (remainingTime / totalTime);
             
                     // Update the score
-                    setScore((prevScore) => prevScore + Math.floor(points)); // Round down the points
+                    setScore((prevScore) => prevScore + Math.floor(points));
                     console.log(`Points Earned: ${Math.floor(points)} for Remaining Time: ${remainingTime}`);
                 }
-            }
+            }                         
                         
             if (data.type === "next_question") {
                 setShowAnswer(false);
@@ -203,8 +205,8 @@ function GamePlay({ questions, onFinish, gameData }) {
                 <div className="game-content">
                     <div className="final-score">
                         <h2>Game Complete!</h2>
-                        <p>Final Score: {score} out of {questions.length}</p>
-                        <p>Percentage: {((score / questions.length) * 100).toFixed(1)}%</p>
+                        <p>Final Score: {score} out of {questions.length * 1000}</p>
+                        <p>Percentage: {((score / questions.length * 1000) * 100).toFixed(1)}%</p>
                         {gameData.isHost && ( 
                             <button onClick={handlePlayAgain} className="play-again-button">
                                 Play Again
@@ -269,7 +271,17 @@ function GamePlay({ questions, onFinish, gameData }) {
                     )}
                 </div>
                 <div className="answerCount">
-                    Players Answered: {playersAnswered} / {playerCount}
+                    <div className="players-answered-text">
+                        Players Answered: {playersAnswered} / {playerCount}
+                    </div>
+                    <div className="progress-bar">
+                        <div
+                            className="progress-bar-fill"
+                            style={{
+                                width: `${(playersAnswered / playerCount) * 100}%`,
+                            }}
+                        ></div>
+                    </div>
                 </div>
                 <div className="progress">
                     Question {currentQuestion + 1} of {questions.length}

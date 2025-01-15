@@ -270,43 +270,46 @@ wss.on('connection', (ws) => {
                     break;
 
                 case 'submit_answer': {
-                    const { playerName, gameCode} = data;
-                    const game = activeGames.get(data.gameCode);
-
+                    const { playerName, gameCode } = data;
+                    const game = activeGames.get(gameCode);
+                
                     if (!game.answeredPlayers) {
-                        game.answeredPlayers = new Set();
+                        game.answeredPlayers = new Map(); // Use a Map to store player-specific data
                     }
-            
-                    // Add player to the set of answered players
-                    game.answeredPlayers.add(playerName);
-
-                    console.log(`Player ${playerName} answered. Total players: ${game.answeredPlayers.size}`);
-
+                
+                    // Store the player's specific timeLeft at the moment of answering
+                    game.answeredPlayers.set(playerName, game.timeLeft);
+                
+                    console.log(`Player ${playerName} answered with timeLeft: ${game.timeLeft}`);
+                
                     if (game) {
                         broadcastToGame(data.gameCode, {
                             type: 'player_answered',
                             playersAnswered: game.answeredPlayers.size,
-                            timeLeft: game.timeLeft,
+                            playerTimeLeft: game.answeredPlayers.get(playerName), // Send player's specific timeLeft
+                            playerName: playerName,
                         });
-                        if (game.answeredPlayers.size === game.playerCount) { // if all players have answered, set time to 0
+                
+                        // If all players answer or time runs out
+                        if (game.answeredPlayers.size === game.playerCount) {
                             clearInterval(game.timer);
                             game.timeLeft = 0;
-
+                
                             broadcastToGame(gameCode, {
                                 type: 'timer_update',
                                 timeLeft: 0,
                                 currentQuestion: game.currentQuestion,
-                            })
-
+                            });
+                
                             broadcastToGame(gameCode, {
                                 type: 'show_answer',
                                 correctAnswer: game.questions[game.currentQuestion].correct_answer,
                                 currentQuestion: game.currentQuestion,
-                            })
+                            });
                         }
                     }
                     break;
-                }
+                }                    
                 
                 case 'next_question': {
                     const currentGame = activeGames.get(data.gameCode);
