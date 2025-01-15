@@ -45,14 +45,7 @@ function GamePlay({ questions, onFinish, gameData }) {
 
             if (data.type === 'player_count') {
                 setPlayerCount(data.playerCount);
-            }
-
-            if (data.type === 'player_answered') {
-                setPlayersAnswered(data.playersAnswered);
-                playerTimesRef.current[data.playerName] = data.playerTimeLeft; // Store player-specific timeLeft
-                console.log(`Player ${data.playerName} timeLeft recorded as:`, data.playerTimeLeft);
-                console.log('full data:', data);
-            }                          
+            }                       
 
             if (data.type === 'timer_update') {
                 setTimeLeft(data.timeLeft);
@@ -82,17 +75,25 @@ function GamePlay({ questions, onFinish, gameData }) {
             if (data.type === "next_question") {
                 setShowAnswer(false);
                 setUiSelectedAnswer(null);
-                setPlayersAnswered(0);
+                setPlayersAnswered(0); // Reset the count
                 setHasAnswered(false);
+                playerTimesRef.current = {}; // Reset player times
             
-                // Only reset timer when the next question is explicitly triggered
+                // Reset the timer and move to the next question
                 if (data.currentQuestion < questions.length) {
                     setCurrentQuestion(data.currentQuestion);
-                    setTimeLeft(10); // Reset the timer immediately
+                    setTimeLeft(10); // Reset the timer
                 } else {
                     setGameCompleted(true);
                 }
-            }            
+            }
+            
+            if (data.type === "player_answered") {
+                setPlayersAnswered(data.playersAnswered); // Update answer count
+                playerTimesRef.current[data.playerName] = data.playerTimeLeft; // Update time left for the player
+                console.log(`Player ${data.playerName} answered. Time left: ${data.playerTimeLeft}`);
+            }
+                     
 
             if (data.type === 'game_completed') {
                 setGameCompleted(true);

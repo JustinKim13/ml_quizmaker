@@ -1,34 +1,34 @@
 {
   "questions": [
     {
+      "question": "What is the name of the rock band formed by Jimmy Page?",
+      "options": [
+        "Option 3",
+        "band",
+        "Led Zeppelin",
+        "music"
+      ],
+      "correct_answer": "Led Zeppelin"
+    },
+    {
+      "question": "What is the main ingredient in falafel?",
+      "options": [
+        "fruit",
+        "Pineapple",
+        "juice",
+        "Chickpea"
+      ],
+      "correct_answer": "Pineapple"
+    },
+    {
       "question": "What is the name of the largest island in the world?",
       "options": [
+        "Greenland",
         "Arctic",
-        "island",
-        "Kalaallit Nunaat",
-        "Greenland"
+        "Gronland",
+        "country"
       ],
       "correct_answer": "Greenland"
-    },
-    {
-      "question": "What was the name of Lindsay Lohan's first film?",
-      "options": [
-        "Option 3",
-        "Parent",
-        "Parent Trap",
-        "escape"
-      ],
-      "correct_answer": "Parent Trap"
-    },
-    {
-      "question": "What country imports camels from?",
-      "options": [
-        "country",
-        "Saudi Arabia",
-        "Option 3",
-        "Option 2"
-      ],
-      "correct_answer": "Saudi Arabia"
     }
   ]
 }

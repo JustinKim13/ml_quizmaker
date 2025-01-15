@@ -274,52 +274,53 @@ wss.on('connection', (ws) => {
                     const game = activeGames.get(gameCode);
                 
                     if (!game.answeredPlayers) {
-                        game.answeredPlayers = new Map(); // Use a Map to store player-specific data
+                        game.answeredPlayers = new Map();
                     }
                 
-                    // Store the player's specific timeLeft at the moment of answering
+                    // Add player answer with their time left
                     game.answeredPlayers.set(playerName, game.timeLeft);
                 
                     console.log(`Player ${playerName} answered with timeLeft: ${game.timeLeft}`);
                 
-                    if (game) {
-                        broadcastToGame(data.gameCode, {
-                            type: 'player_answered',
-                            playersAnswered: game.answeredPlayers.size,
-                            playerTimeLeft: game.answeredPlayers.get(playerName), // Send player's specific timeLeft
-                            playerName: playerName,
+                    // Broadcast updated playersAnswered count
+                    broadcastToGame(data.gameCode, {
+                        type: 'player_answered',
+                        playersAnswered: game.answeredPlayers.size, // Send the updated count
+                        playerTimeLeft: game.answeredPlayers.get(playerName), // Send specific player's timeLeft
+                        playerName: playerName,
+                    });
+                
+                    // Check if all players have answered or time is up
+                    if (game.answeredPlayers.size === game.playerCount) {
+                        clearInterval(game.timer);
+                        game.timeLeft = 0;
+                
+                        broadcastToGame(gameCode, {
+                            type: 'timer_update',
+                            timeLeft: 0,
+                            currentQuestion: game.currentQuestion,
                         });
                 
-                        // If all players answer or time runs out
-                        if (game.answeredPlayers.size === game.playerCount) {
-                            clearInterval(game.timer);
-                            game.timeLeft = 0;
-                
-                            broadcastToGame(gameCode, {
-                                type: 'timer_update',
-                                timeLeft: 0,
-                                currentQuestion: game.currentQuestion,
-                            });
-                
-                            broadcastToGame(gameCode, {
-                                type: 'show_answer',
-                                correctAnswer: game.questions[game.currentQuestion].correct_answer,
-                                currentQuestion: game.currentQuestion,
-                            });
-                        }
+                        broadcastToGame(gameCode, {
+                            type: 'show_answer',
+                            correctAnswer: game.questions[game.currentQuestion].correct_answer,
+                            currentQuestion: game.currentQuestion,
+                        });
                     }
                     break;
-                }                    
+                }                        
                 
                 case 'next_question': {
                     const currentGame = activeGames.get(data.gameCode);
                     if (currentGame) {
                         currentGame.currentQuestion = data.currentQuestion; // Update to next question
-                        currentGame.answeredPlayers = new Set(); // Reset answered players
+                        currentGame.answeredPlayers = new Map(); // Reset answered players
                         
                         broadcastToGame(data.gameCode, {
                             type: "next_question",
                             currentQuestion: currentGame.currentQuestion,
+                            playersAnswered: 0,
+                            playerCount: currentGame.players.length,
                         });
                 
                         // Start the timer ONLY after the host triggers "Next Question"
