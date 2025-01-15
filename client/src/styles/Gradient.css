@@ -1,66 +1,16 @@
-.animated-background {
+.background {
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    z-index: -1;
-    background:
-        radial-gradient(circle at 90% 10%, #4a90e2, transparent),  /* Sky blue */
-        radial-gradient(circle at 10% 90%, #2ecc71, transparent),  /* Emerald green */
-        radial-gradient(circle at 90% 10%, #9b59b6, transparent),  /* Soft purple */
-        radial-gradient(circle at 50% 80%, #3498db, transparent),  /* Medium blue */
-        radial-gradient(circle at 10% 10%, #1abc9c, transparent);  /* Turquoise */
-
-    background-blend-mode: darken;
-    background-size: 200% 200%;
-    animation: meshGradient 15s ease infinite;
+    z-index: -1; /* Ensure it stays behind other content */
+    pointer-events: none; /* Prevent the canvas from blocking interactions */
+    background-color: rgb(2, 2, 3);
 }
 
-@keyframes meshGradient {
-    0% {
-        background-position: 0% 0%, 100% 0%, 0% 100%, 100% 100%;
-    }
-
-    25% {
-        background-position: 25% 25%, 75% 25%, 25% 75%, 75% 75%;
-    }
-
-    50% {
-        background-position: 50% 50%, 50% 25%, 25% 50%, 75% 50%;
-    }
-
-    75% {
-        background-position: 75% 75%, 25% 50%, 50% 75%, 25% 25%;
-    }
-
-    100% {
-        background-position: 0% 0%, 100% 0%, 0% 100%, 100% 100%;
-    }
-}
-
-.landing-content {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    color: white;
-    font-family: "Open Sans", sans-serif;
-    font-weight: 300;
-    height: 100%;
-}
-
-input,
-button {
-    padding: 10px;
-    font-size: 16px;
-    margin: 10px;
-    border: none;
-    border-radius: 5px;
-}
-
-button {
-    background-color: #4caf50;
-    color: white;
-    cursor: pointer;
+body, html {
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* Prevent scrollbars from appearing */
 }

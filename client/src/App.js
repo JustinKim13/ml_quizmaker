@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import LandingPage from "./components/LandingPage";
 import FileUpload from "./components/FileUpload";
 import Lobby from "./components/Lobby";
@@ -6,12 +6,24 @@ import GamePlay from "./components/GamePlay";
 import JoinGame from "./components/JoinGame";
 import './styles/shared/ButtonStyles.css';
 import './styles/Gradient.css';
+import Particles from 'particlesjs';
 
 function App() {
     const [currentPage, setCurrentPage] = useState('landing');
     const [gameData, setGameData] = useState(null);
     const [questions, setQuestions] = useState([]);
     const [username, setUsername] = useState('');
+
+    useEffect(() => {
+        // Initialize Particles.js on app load
+        Particles.init({
+            selector: '.background',
+            maxParticles: 100,
+            color: ['#ffffff', '#cccccc', '#999999'], // Sleek white/grey colors
+            connectParticles: true,
+            speed: 0.1,
+        });
+    }, []);
 
     const handleStart = (username, action) => {
         setUsername(username);
@@ -46,53 +58,63 @@ function App() {
     };
 
     // Render the appropriate component based on currentPage
-    switch (currentPage) {
-        case 'landing':
-            return <LandingPage onStart={handleStart} />;
-            
-        case 'upload':
-            return (
-                <FileUpload 
-                    username={username}
-                    setGameData={(data) => {
-                        setGameData({...data, playerName: username});
-                        setCurrentPage('lobby');
-                    }}
-                    onBack={() => setCurrentPage('landing')}
-                />
-            );
-            
-        case 'lobby':
-            return gameData && (
-                <Lobby 
-                    gameData={gameData}
-                    startGame={startGame}
-                    onBack={handleLeaveLobby}
-                />
-            );
-            
-        case 'game':
-            return (
-                <GamePlay 
-                    questions={questions} 
-                    onFinish={() => setCurrentPage('lobby')}
-                    gameData={gameData}
-                />
-            );
-            
-        case 'join':
-            return <JoinGame 
-                username={username}
-                onJoin={(gameData) => {
-                    setGameData(gameData);
-                    setCurrentPage('lobby');
-                }}
-                onBack={() => setCurrentPage('landing')}
-            />;
-            
-        default:
-            return <LandingPage onStart={handleStart} />;
-    }
+    return (
+        <div>
+            {/* Background for Particles.js */}
+            <canvas className="background"></canvas>
+
+            {/* Render the appropriate page */}
+            {(() => {
+                switch (currentPage) {
+                    case 'landing':
+                        return <LandingPage onStart={handleStart} />;
+                        
+                    case 'upload':
+                        return (
+                            <FileUpload 
+                                username={username}
+                                setGameData={(data) => {
+                                    setGameData({...data, playerName: username});
+                                    setCurrentPage('lobby');
+                                }}
+                                onBack={() => setCurrentPage('landing')}
+                            />
+                        );
+                        
+                    case 'lobby':
+                        return gameData && (
+                            <Lobby 
+                                gameData={gameData}
+                                startGame={startGame}
+                                onBack={handleLeaveLobby}
+                            />
+                        );
+                        
+                    case 'game':
+                        return (
+                            <GamePlay 
+                                questions={questions} 
+                                onFinish={() => setCurrentPage('lobby')}
+                                gameData={gameData}
+                            />
+                        );
+                        
+                    case 'join':
+                        return <JoinGame 
+                            username={username}
+                            onJoin={(gameData) => {
+                                setGameData(gameData);
+                                setCurrentPage('lobby');
+                            }}
+                            onBack={() => setCurrentPage('landing')}
+                        />;
+                        
+                    default:
+                        return <LandingPage onStart={handleStart} />;
+                }
+            })()}
+        </div>
+    );
 }
 
 export default App;

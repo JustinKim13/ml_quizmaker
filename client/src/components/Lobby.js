@@ -264,7 +264,7 @@ const Lobby = ({ gameData, startGame, onBack }) => {
                         )}
                     </div>
                 ) : (
-                    <div className="waiting-message">
+                    <div className="status-message">
                         <p>{statusMessage}</p>
                     </div>
                 )}

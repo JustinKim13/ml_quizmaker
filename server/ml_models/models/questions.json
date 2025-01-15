@@ -1,34 +1,34 @@
 {
   "questions": [
     {
-      "question": "What is the name of the smallest country in the world?",
+      "question": "What is the name of the largest island in the world?",
       "options": [
-        "Vatican City",
-        "USA",
-        "City",
-        "Option 3"
+        "Arctic",
+        "island",
+        "Kalaallit Nunaat",
+        "Greenland"
       ],
-      "correct_answer": "Vatican City"
+      "correct_answer": "Greenland"
     },
     {
-      "question": "What is the largest lizard?",
+      "question": "What was the name of Lindsay Lohan's first film?",
       "options": [
-        "dragon",
-        "lizard",
-        "Komodo",
-        "Komodo dragon"
-      ],
-      "correct_answer": "Komodo dragon"
-    },
-    {
-      "question": "Which team holds the record for the most Super Bowl appearances?",
-      "options": [
-        "NFL",
         "Option 3",
-        "New England Patriots",
-        "England"
+        "Parent",
+        "Parent Trap",
+        "escape"
       ],
-      "correct_answer": "New England Patriots"
+      "correct_answer": "Parent Trap"
+    },
+    {
+      "question": "What country imports camels from?",
+      "options": [
+        "country",
+        "Saudi Arabia",
+        "Option 3",
+        "Option 2"
+      ],
+      "correct_answer": "Saudi Arabia"
     }
   ]
 }
