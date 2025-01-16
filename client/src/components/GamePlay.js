@@ -255,12 +255,18 @@ function GamePlay({ questions, onFinish, gameData }) {
         <div className="game-container">
             <div className="animated-background"></div>
             <div className="game-content">
-                <div className="score-display">Score: {score}</div>
+                {/* Add the progress at the top-left */}
+                <div className="progress-top-left">
+                    Question {currentQuestion + 1} of {questions.length}
+                </div>
                 
+                <div className="score-display">Score: {score}</div>
+    
                 {/* Timer display */}
                 <div className="timer" style={{ color: timeLeft <= 5 ? 'red' : 'inherit' }}>
                     {timeLeft > 0 ? `Time Left: ${timeLeft}s` : "Time's Up!"}
                 </div>
+                
                 <div className="question-container">
                     <h2 className="question">{question.question}</h2>
                     <div className="answers-grid">
@@ -282,13 +288,13 @@ function GamePlay({ questions, onFinish, gameData }) {
                             </button>
                         ))}
                     </div>
-                    {/* Add the Next Question button here */}
                     {showAnswer && gameData.isHost && (
-                        <button onClick={nextQuestion} className="next-question-button">
-                            Next Question
+                        <button onClick={nextQuestion} className="next-button">
+                            Next
                         </button>
                     )}
                 </div>
+    
                 <div className="answerCount">
                     <div className="players-answered-text">
                         Players Answered: {playersAnswered} / {playerCount}
@@ -302,12 +308,9 @@ function GamePlay({ questions, onFinish, gameData }) {
                         ></div>
                     </div>
                 </div>
-                <div className="progress">
-                    Question {currentQuestion + 1} of {questions.length}
-                </div>
             </div>
         </div>
-    );
+    );    
 }
 
 export default GamePlay;
