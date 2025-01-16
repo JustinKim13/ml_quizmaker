@@ -3,32 +3,32 @@
     {
       "question": "What is the main ingredient in falafel?",
       "options": [
-        "Chickpea",
+        "Ananas comosus",
         "Pineapple",
-        "fruit",
-        "Ananas comosus"
+        "ananas",
+        "fruit"
       ],
       "correct_answer": "Pineapple"
     },
     {
       "question": "What was the name of Lindsay Lohan's first film?",
       "options": [
-        "Option 3",
-        "Parent Trap",
+        "escape",
         "Parent",
-        "escape"
+        "Parent Trap",
+        "Option 3"
       ],
       "correct_answer": "Parent Trap"
     },
     {
-      "question": "What is the name of the object that brings bad luck if broken?",
+      "question": "What is the name of the largest ocean on Earth?",
       "options": [
-        "Answer",
-        "A mirror",
-        "Option 3",
-        "object"
+        "Ocean",
+        "The Pacific Ocean",
+        "Pacific",
+        "ocean"
       ],
-      "correct_answer": "A mirror"
+      "correct_answer": "The Pacific Ocean"
     }
   ]
 }

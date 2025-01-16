@@ -242,3 +242,38 @@
     transition: width 0.3s ease-in-out;
     border-radius: 5px;
 }
+
+.podium {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 1.5rem;
+    margin: 2rem 0;
+}
+
+.podium-spot {
+    text-align: center;
+    padding: 1rem;
+    background-color: #f9f9f9;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    min-width: 100px;
+    max-width: 150px;
+}
+
+.podium-spot:nth-child(1) {
+    background: linear-gradient(180deg, #ffd700, #d4af37);
+}
+
+.podium-spot:nth-child(2) {
+    background: linear-gradient(180deg, #c0c0c0, #a8a8a8);
+}
+
+.podium-spot:nth-child(3) {
+    background: linear-gradient(180deg, #cd7f32, #a47130);
+}
+
+.podium-spot span {
+    display: block;
+    margin: 0.5rem 0;
+}

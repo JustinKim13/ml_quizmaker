@@ -205,15 +205,37 @@ function GamePlay({ questions, onFinish, gameData }) {
     }
 
     if (gameCompleted) { // if gameCompleted state is true, show results page
+        // Sort players by their scores
+        const sortedPlayers = Object.entries(playerScores)
+            .sort(([, a], [, b]) => b.score - a.score) // Sort by score in descending order
+            .slice(0, 3); // Take the top 3 players
+    
+        const podiumColors = ["gold", "silver", "bronze"]; // Podium colors for top 3
+        const podiumStyles = [
+            { color: "gold", fontSize: "2em" },
+            { color: "silver", fontSize: "1.8em" },
+            { color: "bronze", fontSize: "1.6em" },
+        ];
+    
         return (
             <div className="game-container">
                 <div className="animated-background"></div>
                 <div className="game-content">
                     <div className="final-score">
                         <h2>Game Complete!</h2>
-                        <p>Final Score: {score} out of {questions.length * 1000}</p>
-                        <p>Percentage: {((score / questions.length * 1000) * 100).toFixed(1)}%</p>
-                        {gameData.isHost && ( 
+                        <div className="podium">
+                            {sortedPlayers.map(([playerName, data], index) => (
+                                <div
+                                    key={playerName}
+                                    className="podium-spot"
+                                    style={podiumStyles[index]}
+                                >
+                                    <span style={{ fontWeight: "bold" }}>{playerName}</span>
+                                    <span>: {data.score} points</span>
+                                </div>
+                            ))}
+                        </div>
+                        {gameData.isHost && (
                             <button onClick={handlePlayAgain} className="play-again-button">
                                 Play Again
                             </button>
@@ -227,7 +249,7 @@ function GamePlay({ questions, onFinish, gameData }) {
                 </div>
             </div>
         );
-    }
+    }    
 
     return (
         <div className="game-container">

@@ -417,7 +417,6 @@ function startGameTimer(gameCode) {
                 broadcastToGame(gameCode, {
                     type: 'game_completed',
                 });
-                activeGames.delete(gameCode); // Clean up game state
                 return;
             }
 
