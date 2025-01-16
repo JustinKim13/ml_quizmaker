@@ -32,16 +32,21 @@ function GamePlay({ questions, onFinish, gameData }) {
             const data = JSON.parse(event.data); // get data as JSON object from response
             console.log("Received WebSocket message:", data);
             
-            if (data.type === 'player_progress') {
-                // Update other players' progress
-                setPlayerScores(prev => ({
-                    ...prev,
-                    [data.playerName]: {
-                        score: data.score,
-                        currentQuestion: data.currentQuestion
-                    }
-                }));
-            }
+            if (data.type === 'player_answered') {
+                setPlayerScores((prevScores) => {
+                    const currentScore = prevScores[data.playerName]?.score || 0; // Get current score or initialize to 0
+                    const newScore = currentScore + (data.points || 0); // Add the new points
+            
+                    console.log(
+                        `${data.playerName} scored ${data.points || 0}. Total score: ${newScore}`
+                    );
+            
+                    return {
+                        ...prevScores,
+                        [data.playerName]: { ...prevScores[data.playerName], score: newScore },
+                    };
+                });
+            }                     
 
             if (data.type === 'player_count') {
                 setPlayerCount(data.playerCount);
@@ -56,7 +61,7 @@ function GamePlay({ questions, onFinish, gameData }) {
                 setTimeLeft(null); // Pause the timer after showing the answer
             
                 if (selectedAnswerRef.current === data.correctAnswer) {
-                    const minPoints = 750;
+                    const minPoints = 900;
                     const maxPoints = 1000;
                     const totalTime = 10;
             
@@ -228,15 +233,6 @@ function GamePlay({ questions, onFinish, gameData }) {
         <div className="game-container">
             <div className="animated-background"></div>
             <div className="game-content">
-                <div className="scoreboard">
-                    {Object.entries(playerScores).map(([player, data]) => (
-                        <div key={player} className="player-score">
-                            <span>{player}</span>
-                            <span>Score: {data.score}</span>
-                            <span>Question: {data.currentQuestion + 1}/{questions.length}</span>
-                        </div>
-                    ))}
-                </div>
                 <div className="score-display">Score: {score}</div>
                 
                 {/* Timer display */}

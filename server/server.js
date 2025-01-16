@@ -270,45 +270,69 @@ wss.on('connection', (ws) => {
                     break;
 
                 case 'submit_answer': {
-                    const { playerName, gameCode } = data;
+                    const { playerName, gameCode, answer } = data;
                     const game = activeGames.get(gameCode);
+                
+                    if (!game) {
+                        console.error(`Game not found for gameCode: ${gameCode}`);
+                        return;
+                    }
                 
                     if (!game.answeredPlayers) {
                         game.answeredPlayers = new Map();
                     }
                 
-                    // Add player answer with their time left
+                    // Check if the player has already answered
+                    if (game.answeredPlayers.has(playerName)) {
+                        console.log(`Player ${playerName} has already answered`);
+                        return;
+                    }
+                
+                    // Record the player's answer and time left
                     game.answeredPlayers.set(playerName, game.timeLeft);
                 
-                    console.log(`Player ${playerName} answered with timeLeft: ${game.timeLeft}`);
+                    // Calculate the score for the player
+                    const question = game.questions[game.currentQuestion];
+                    const isCorrect = answer === question.correct_answer;
                 
-                    // Broadcast updated playersAnswered count
-                    broadcastToGame(data.gameCode, {
+                    let points = 0;
+                    if (isCorrect) {
+                        const minPoints = 900;
+                        const maxPoints = 1000;
+                        const totalTime = 10; // Assuming a 10-second timer
+                
+                        points = Math.floor(minPoints + (maxPoints - minPoints) * (game.timeLeft / totalTime));
+                    }
+                
+                    // Find the player and update their score
+                    const player = game.players.find((p) => p.name === playerName);
+                    if (player) {
+                        player.score = (player.score || 0) + points;
+                    }
+                
+                    console.log(`Player ${playerName} answered ${isCorrect ? "correctly" : "incorrectly"} with ${game.timeLeft}s left. Points: ${points}`);
+                
+                    // Broadcast the updated scores and answer state
+                    broadcastToGame(gameCode, {
                         type: 'player_answered',
-                        playersAnswered: game.answeredPlayers.size, // Send the updated count
-                        playerTimeLeft: game.answeredPlayers.get(playerName), // Send specific player's timeLeft
-                        playerName: playerName,
+                        playersAnswered: game.answeredPlayers.size,
+                        playerTimeLeft: game.timeLeft,
+                        playerName,
+                        isCorrect,
+                        points,
                     });
                 
-                    // Check if all players have answered or time is up
-                    if (game.answeredPlayers.size === game.playerCount) {
+                    if (game.answeredPlayers.size === game.players.length || game.timeLeft <= 0) {
                         clearInterval(game.timer);
-                        game.timeLeft = 0;
-                
-                        broadcastToGame(gameCode, {
-                            type: 'timer_update',
-                            timeLeft: 0,
-                            currentQuestion: game.currentQuestion,
-                        });
                 
                         broadcastToGame(gameCode, {
                             type: 'show_answer',
-                            correctAnswer: game.questions[game.currentQuestion].correct_answer,
+                            correctAnswer: question.correct_answer,
                             currentQuestion: game.currentQuestion,
                         });
                     }
                     break;
-                }                        
+                }                                 
                 
                 case 'next_question': {
                     const currentGame = activeGames.get(data.gameCode);
@@ -357,31 +381,39 @@ function broadcastToGame(gameCode, data) {
 }
 
 function startGameTimer(gameCode) {
-    const game = activeGames.get(gameCode);
+    const game = activeGames.get(gameCode); // Retrieve the game from activeGames
 
     if (!game) return;
 
     if (game.timer) {
-        clearInterval(game.timer); // Clear existing timer if any
+        clearInterval(game.timer); // Clear any existing timer
     }
 
     game.timeLeft = 10; // Initial time of 10 seconds
-    game.timer = setInterval(() => {
-        if (game.timeLeft > 0) {
-            game.timeLeft -= 1; // Decrement time
 
+    // Start the game timer
+    game.timer = setInterval(() => {
+        const currentGame = activeGames.get(gameCode); // Access the latest game state
+        if (!currentGame) {
+            console.error(`Game not found for gameCode: ${gameCode}`);
+            clearInterval(game.timer);
+            return;
+        }
+
+        if (currentGame.timeLeft > 0) {
+            currentGame.timeLeft -= 1; // Decrement time
             broadcastToGame(gameCode, {
                 type: 'timer_update',
-                timeLeft: game.timeLeft,
-                currentQuestion: game.currentQuestion,
+                timeLeft: currentGame.timeLeft,
+                currentQuestion: currentGame.currentQuestion,
             });
         } else {
-            clearInterval(game.timer);
+            clearInterval(currentGame.timer);
 
-            const currentQuestion = game.currentQuestion || 0;
+            const currentQuestion = currentGame.currentQuestion || 0;
 
             // Ensure the current question is within bounds
-            if (currentQuestion >= game.questions.length) {
+            if (currentQuestion >= currentGame.questions.length) {
                 broadcastToGame(gameCode, {
                     type: 'game_completed',
                 });
@@ -391,13 +423,20 @@ function startGameTimer(gameCode) {
 
             broadcastToGame(gameCode, {
                 type: 'show_answer',
-                correctAnswer: game.questions[currentQuestion].correct_answer,
+                correctAnswer: currentGame.questions[currentQuestion].correct_answer,
                 currentQuestion,
             });
 
-            // Don't restart the timer here; wait for "Next Question" from the host
+            // Update player progress
+            currentGame.players.forEach((player) => {
+                broadcastToGame(gameCode, {
+                    type: 'player_progress',
+                    playerName: player.name,
+                    score: player.score || 0, 
+                });
+            });
         }
-    }, 1000); // Update every second
+    }, 1000); // Run every second
 }
 
 // Add this endpoint to handle joining games
