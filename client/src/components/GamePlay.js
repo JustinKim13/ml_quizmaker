@@ -15,7 +15,7 @@ function GamePlay({ questions, onFinish, gameData }) {
     const [playersAnswered, setPlayersAnswered] = useState(0);
     const [hasAnswered, setHasAnswered] = useState(false);
     const playerTimesRef = useRef({});
-
+    const [showLeaderboard, setShowLeaderboard] = useState(false); // State to toggle leaderboard view
 
     useEffect(() => { // initialize our game websocket at localhost
         const websocket = new WebSocket('ws://localhost:5000');
@@ -181,19 +181,39 @@ function GamePlay({ questions, onFinish, gameData }) {
     }
 
     const nextQuestion = () => {
-        if (ws && gameData.isHost) {
-            ws.send(
-                JSON.stringify({
-                    type: "next_question",
-                    gameCode: gameData.gameCode,
-                    currentQuestion: currentQuestion + 1, // Increment the question
-                })
-            );
-            setTimeLeft(null); // Pause timer
+        if (!showLeaderboard) { // when we first click next to get to leaderboard
+            if (currentQuestion < questions.length - 1) {
+                setShowLeaderboard(true); // Show the leaderboard first
+            } else {
+                if (ws && gameData.isHost) {
+                    ws.send(
+                        JSON.stringify({
+                            type: "next_question",
+                            gameCode: gameData.gameCode,
+                            currentQuestion: currentQuestion + 1, // Increment the question
+                        })
+                    );
+                }
+                setGameCompleted(true);
+            }
+        } else { // going from leaderboard to next question
+            setShowLeaderboard(false); // Hide leaderboard
+            if (currentQuestion < questions.length - 1) {
+                if (ws && gameData.isHost) {
+                    ws.send(
+                        JSON.stringify({
+                            type: "next_question",
+                            gameCode: gameData.gameCode,
+                            currentQuestion: currentQuestion + 1, // Increment the question
+                        })
+                    );
+                }
+            } else {
+                setGameCompleted(true); // End the game if it's the last question
+            }
         }
-    };
+    };    
     
-
     const question = questions[currentQuestion];
 
     const handlePlayAgain = () => {
@@ -203,6 +223,32 @@ function GamePlay({ questions, onFinish, gameData }) {
     const handleLobby = () => {
         onFinish();
     }
+
+    if (showLeaderboard) {
+        // Sort players by score
+        const sortedPlayers = Object.entries(playerScores)
+            .sort(([, a], [, b]) => b.score - a.score)
+            .slice(0, 3); // Top 3 players
+    
+        return (
+            <div className="game-container">
+                <div className="game-content">
+                    <h2>Top Players</h2>
+                    <div className="podium">
+                        {sortedPlayers.map(([playerName, data], index) => (
+                            <div key={playerName} className="podium-spot">
+                                <span style={{ fontWeight: "bold" }}>{playerName}</span>
+                                <span>: {data.score} points</span>
+                            </div>
+                        ))}
+                    </div>
+                    <button onClick={nextQuestion} className="next-button">
+                        Next
+                    </button>
+                </div>
+            </div>
+        );
+    }    
 
     if (gameCompleted) { // if gameCompleted state is true, show results page
         // Sort players by their scores
@@ -294,7 +340,6 @@ function GamePlay({ questions, onFinish, gameData }) {
                         </button>
                     )}
                 </div>
-    
                 <div className="answerCount">
                     <div className="players-answered-text">
                         Players Answered: {playersAnswered} / {playerCount}

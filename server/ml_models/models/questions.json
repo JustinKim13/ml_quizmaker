@@ -1,34 +1,34 @@
 {
   "questions": [
     {
-      "question": "What is the main ingredient in falafel?",
+      "question": "What is the rarest M&M color?",
       "options": [
-        "Ananas comosus",
-        "Pineapple",
-        "ananas",
-        "fruit"
+        "Robert Brown",
+        "little",
+        "Brown",
+        "John Brown"
       ],
-      "correct_answer": "Pineapple"
+      "correct_answer": "Brown"
     },
     {
-      "question": "What was the name of Lindsay Lohan's first film?",
+      "question": "What is the name of the object that brings bad luck if broken?",
       "options": [
-        "escape",
-        "Parent",
-        "Parent Trap",
-        "Option 3"
+        "Answer",
+        "object",
+        "Option 3",
+        "A mirror"
       ],
-      "correct_answer": "Parent Trap"
+      "correct_answer": "A mirror"
     },
     {
-      "question": "What is the name of the largest ocean on Earth?",
+      "question": "What is the smallest unit of memory?",
       "options": [
-        "Ocean",
-        "The Pacific Ocean",
-        "Pacific",
-        "ocean"
+        "kilobyte",
+        "K",
+        "dried",
+        "memory"
       ],
-      "correct_answer": "The Pacific Ocean"
+      "correct_answer": "kilobyte"
     }
   ]
 }
