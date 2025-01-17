@@ -225,20 +225,26 @@ function GamePlay({ questions, onFinish, gameData }) {
     }
 
     if (showLeaderboard) {
-        // Sort players by score
+        // Sort players by score and take the top 5
         const sortedPlayers = Object.entries(playerScores)
             .sort(([, a], [, b]) => b.score - a.score)
-            .slice(0, 3); // Top 3 players
+            .slice(0, 5); // Top 5 players
     
         return (
             <div className="game-container">
                 <div className="game-content">
-                    <h2>Top Players</h2>
-                    <div className="podium">
+                    <h2 className="leaderboard-title">Leaderboard</h2>
+                    <div className="leaderboard">
                         {sortedPlayers.map(([playerName, data], index) => (
-                            <div key={playerName} className="podium-spot">
-                                <span style={{ fontWeight: "bold" }}>{playerName}</span>
-                                <span>: {data.score} points</span>
+                            <div
+                                key={playerName}
+                                className={`leaderboard-item ${
+                                    index === 0 ? "first-place" : "" // Highlight first place
+                                }`}
+                            >
+                                <span className="rank">{index + 1}</span>
+                                <span className="player-name">{playerName}</span>
+                                <span className="player-score">{data.score} points</span>
                             </div>
                         ))}
                     </div>
@@ -256,7 +262,6 @@ function GamePlay({ questions, onFinish, gameData }) {
             .sort(([, a], [, b]) => b.score - a.score) // Sort by score in descending order
             .slice(0, 3); // Take the top 3 players
     
-        const podiumColors = ["gold", "silver", "bronze"]; // Podium colors for top 3
         const podiumStyles = [
             { color: "gold", fontSize: "2em" },
             { color: "silver", fontSize: "1.8em" },

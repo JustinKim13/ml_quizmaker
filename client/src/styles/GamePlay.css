@@ -291,3 +291,56 @@
     border-radius: 5px;
     z-index: 10;
 }
+
+.leaderboard-title {
+    font-size: 2rem;
+    text-align: center;
+    margin-bottom: 20px;
+    color: black;
+}
+
+.leaderboard {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.leaderboard-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 80%;
+    max-width: 400px;
+    padding: 10px 20px;
+    background-color: #2d2f34;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 1.2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.leaderboard-item.first-place {
+    background-color: #ffc107; /* Highlight first place with gold */
+    color: white;
+    font-weight: bold;
+}
+
+.rank {
+    flex: 1;
+    text-align: left;
+    font-weight: bold;
+}
+
+.player-name {
+    flex: 2;
+    text-align: center;
+    color: white;
+}
+
+.player-score {
+    flex: 1;
+    text-align: right;
+    font-weight: bold;
+}
+
