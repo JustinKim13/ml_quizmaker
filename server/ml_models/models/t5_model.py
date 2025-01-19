@@ -93,7 +93,8 @@ def process_chunk(chunk: str, models: Dict) -> Dict:
             return {
                 "question": mc_question['question'],
                 "options": mc_question['options'],
-                "correct_answer": mc_question['answer']
+                "correct_answer": mc_question['answer'],
+                "context": context  # Include the context here
             }
         except Exception as e:
             print(f"Error generating distractors: {str(e)}")
@@ -147,6 +148,7 @@ def main():
                 print(f"\nCreated multiple choice question {len(qa_pairs)} of 3:")
                 print(json.dumps(qa_pair, indent=2))
 
+        # Save questions with context to file
         with open(paths['output'], "w", encoding="utf-8") as f:
             json.dump({"questions": qa_pairs}, f, indent=2)
 

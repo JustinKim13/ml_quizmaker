@@ -16,6 +16,7 @@ function GamePlay({ questions, onFinish, gameData }) {
     const [hasAnswered, setHasAnswered] = useState(false);
     const playerTimesRef = useRef({});
     const [showLeaderboard, setShowLeaderboard] = useState(false); // State to toggle leaderboard view
+    const [currentContext, setCurrentContext] = useState(""); // State for question context
 
     useEffect(() => { // initialize our game websocket at localhost
         const websocket = new WebSocket('ws://localhost:5000');
@@ -80,18 +81,18 @@ function GamePlay({ questions, onFinish, gameData }) {
             if (data.type === "next_question") {
                 setShowAnswer(false);
                 setUiSelectedAnswer(null);
-                setPlayersAnswered(0); // Reset the count
+                setPlayersAnswered(0);
                 setHasAnswered(false);
                 playerTimesRef.current = {}; // Reset player times
             
-                // Reset the timer and move to the next question
                 if (data.currentQuestion < questions.length) {
                     setCurrentQuestion(data.currentQuestion);
+                    setCurrentContext(data.context || ""); // Set context
                     setTimeLeft(10); // Reset the timer
                 } else {
                     setGameCompleted(true);
                 }
-            }
+            }            
             
             if (data.type === "player_answered") {
                 setPlayersAnswered(data.playersAnswered); // Update answer count
@@ -102,15 +103,33 @@ function GamePlay({ questions, onFinish, gameData }) {
 
             if (data.type === 'game_completed') {
                 setGameCompleted(true);
-            }            
+            }       
+            
+            if (data.type === "game_reset") {
+                setCurrentQuestion(0); // Reset to the first question
+                setScore(0); // Reset the score
+                setShowAnswer(false); // Reset the answer view
+                setGameCompleted(false); // Reset game completion state
+                setPlayersAnswered(0); // Reset the players who answered
+                setTimeLeft(10); // Reset the timer
+                setUiSelectedAnswer(null); // Clear the selected answer
+                setHasAnswered(false); // Reset the answered state
+                playerTimesRef.current = {}; // Clear the player times
+                setPlayerScores({}); // Reset player scores
+                console.log("Game reset successfully.");
+            }
         };
 
         setWs(websocket);
 
+        if (questions.length > 0) {
+            setCurrentContext(questions[0]?.context || "");
+        }
+
         return () => {
             websocket.close();
         };
-    }, [gameData.gameCode, gameData.playerName, questions.length]);
+    }, [gameData.gameCode, gameData.playerName, questions]);
 
     // Handle page navigation and refresh
     useEffect(() => {
@@ -182,7 +201,7 @@ function GamePlay({ questions, onFinish, gameData }) {
 
     const nextQuestion = () => {
         if (!showLeaderboard) { // when we first click next to get to leaderboard
-            if (currentQuestion < questions.length - 1) {
+            if (currentQuestion < questions.length) {
                 setShowLeaderboard(true); // Show the leaderboard first
             } else {
                 if (ws && gameData.isHost) {
@@ -217,15 +236,35 @@ function GamePlay({ questions, onFinish, gameData }) {
     const question = questions[currentQuestion];
 
     const handlePlayAgain = () => {
-        onFinish(); // passed as a parameter so that it's implementation can be handled in App.js
-    };
+        setCurrentQuestion(0); // Reset to the first question
+        setScore(0); // Reset the score
+        setShowAnswer(false); // Reset the answer view
+        setGameCompleted(false); // Reset game completion state
+        setPlayersAnswered(0); // Reset the players who answered
+        setTimeLeft(10); // Reset the timer
+        setUiSelectedAnswer(null); // Clear the selected answer
+        setHasAnswered(false); // Reset the answered state
+        playerTimesRef.current = {}; // Clear the player times
+        setPlayerScores({}); // Reset player scores
+    
+        // Send a "reset_game" event to the server
+        if (ws) {
+            ws.send(
+                JSON.stringify({
+                    type: "reset_game",
+                    gameCode: gameData.gameCode,
+                })
+            );
+        }
+    
+        onFinish(); // Notify parent to reset or navigate as necessary
+    };    
 
     const handleLobby = () => {
         onFinish();
     }
 
     if (showLeaderboard) {
-        // Sort players by score and take the top 5
         const sortedPlayers = Object.entries(playerScores)
             .sort(([, a], [, b]) => b.score - a.score)
             .slice(0, 5); // Top 5 players
@@ -247,6 +286,10 @@ function GamePlay({ questions, onFinish, gameData }) {
                                 <span className="player-score">{data.score} points</span>
                             </div>
                         ))}
+                    </div>
+                    <div className="question-context">
+                        <h3>Context:</h3>
+                        <p>{currentContext}</p> {/* Display context here */}
                     </div>
                     <button onClick={nextQuestion} className="next-button">
                         Next

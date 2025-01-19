@@ -429,4 +429,20 @@
     }
 }
 
+.question-context {
+    margin-top: 20px;
+    padding: 10px;
+    background-color: #f9f9f9;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 16px;
+    line-height: 1.5;
+    color: #333;
+}
+.question-context h3 {
+    margin-bottom: 10px;
+    font-weight: bold;
+    color: #444;
+    text-align: center;
+}
 

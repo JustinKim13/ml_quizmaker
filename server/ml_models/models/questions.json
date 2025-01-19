@@ -1,34 +1,37 @@
 {
   "questions": [
     {
+      "question": "What is the name of the largest supermarket chain in the US?",
+      "options": [
+        "Option 3",
+        "supermarket",
+        "Kroger Co.",
+        "city"
+      ],
+      "correct_answer": "Kroger Co.",
+      "context": ": Joan of Arc Trivia Question: What U.S. President coined the phrase \u201cGood to the last drop, \u201d referring to coffee? Answer: Theodore Roosevelt Trivia Question: What is the biggest supermarket chain in the U.S.? Answer: Kroger Co. Trivia Question: On every continent there is a city named what? Answer: Rome Trivia Question: Which name are the Sandwich Islands better known as? Answer: Hawaii"
+    },
+    {
+      "question": "What animal is constitutionally protected in Florida?",
+      "options": [
+        "Pigs",
+        "slovenly person",
+        "grunter",
+        "hog"
+      ],
+      "correct_answer": "Pigs",
+      "context": "n letter in the English alphabet? Answer: E Trivia Question: Chimpanzees and gorillas have human-like fingerprints and so do what other non-human animal? Answer: Koalas Trivia Question: A tick bite can make you allergic to what food? Answer: Red meat Trivia Question: What animal is constitutionally protected in Florida? Answer: Pigs Trivia Question: What planets literally rain diamonds? Answer: Saturn and Jupiter Trivia Question: Saudi Arabia imports camels from what country? Answer: Australia Trivia Questi"
+    },
+    {
       "question": "What is the main substance used to make a crayon?",
       "options": [
-        "Trivia",
-        "substance",
-        "tuba",
-        "Brass"
+        "Brass",
+        "organization",
+        "governance",
+        "substance"
       ],
-      "correct_answer": "Brass"
-    },
-    {
-      "question": "Which country has a red flag with a star?",
-      "options": [
-        "Al-Magrib",
-        "Marruecos",
-        "Cuba",
-        "Morocco"
-      ],
-      "correct_answer": "Morocco"
-    },
-    {
-      "question": "What country is bordered by Germany, Czech Republic, Slovakia and Ukraine?",
-      "options": [
-        "sport",
-        "grappling",
-        "Cricket",
-        "Wrestling"
-      ],
-      "correct_answer": "Wrestling"
+      "correct_answer": "Brass",
+      "context": "ivia Question: What candy was used to lure E.T. in the 1982 movie \u201cE.T.: The Extra-Terrestri- al\u201d? Answer: Reese\u2019s Pieces Trivia Question: The tuba is the largest member of which musical family? Answer: Brass Trivia Question: Which is the main substance used to make a crayon? Answer: Wax Trivia Question: The video game \u201cHappy Feet\u201d features what animals? Answer: Penguins Trivia Question: What actress won her first Oscar for \u201cKramer vs. Kramer\u201d? Answer: Meryl Streep Trivia Question: What object of Dwight\u2019s d"
     }
   ]
 }

@@ -343,6 +343,7 @@ wss.on('connection', (ws) => {
                         broadcastToGame(data.gameCode, {
                             type: "next_question",
                             currentQuestion: currentGame.currentQuestion,
+                            context: currentGame.questions[currentGame.currentQuestion].context,
                             playersAnswered: 0,
                             playerCount: currentGame.players.length,
                         });
@@ -353,8 +354,7 @@ wss.on('connection', (ws) => {
                         console.error(`Game not found for gameCode: ${data.gameCode}`);
                     }
                     break;
-                }
-                    
+                }  
             }
         } catch (error) {
             console.error('WebSocket message error:', error);
