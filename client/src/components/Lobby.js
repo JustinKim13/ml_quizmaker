@@ -223,6 +223,10 @@ const Lobby = ({ gameData, startGame, onBack }) => {
             <div className="back-button" onClick={handleLeave}>
                 ← Back
             </div>
+            <div className="user-profile">
+                <div className="user-avatar">👤</div>
+                <span className="username">{gameData.playerName}</span>
+            </div>
             <div className="lobby-card">
                 <h2>Game Lobby</h2>
                 <div className="game-info">

@@ -256,48 +256,27 @@ function GamePlay({ questions, onFinish, gameData }) {
         );
     }    
 
-    if (gameCompleted) { // if gameCompleted state is true, show results page
-        // Sort players by their scores
+    if (gameCompleted) {
+        // Find the winner (highest score)
         const sortedPlayers = Object.entries(playerScores)
-            .sort(([, a], [, b]) => b.score - a.score) // Sort by score in descending order
-            .slice(0, 3); // Take the top 3 players
-    
-        const podiumStyles = [
-            { color: "gold", fontSize: "2em" },
-            { color: "silver", fontSize: "1.8em" },
-            { color: "bronze", fontSize: "1.6em" },
-        ];
+            .sort(([, a], [, b]) => b.score - a.score);
+        const winner = sortedPlayers[0]; // The first player in the sorted list is the winner
     
         return (
-            <div className="game-container">
-                <div className="animated-background"></div>
-                <div className="game-content">
-                    <div className="final-score">
-                        <h2>Game Complete!</h2>
-                        <div className="podium">
-                            {sortedPlayers.map(([playerName, data], index) => (
-                                <div
-                                    key={playerName}
-                                    className="podium-spot"
-                                    style={podiumStyles[index]}
-                                >
-                                    <span style={{ fontWeight: "bold" }}>{playerName}</span>
-                                    <span>: {data.score} points</span>
-                                </div>
-                            ))}
-                        </div>
-                        {gameData.isHost && (
-                            <button onClick={handlePlayAgain} className="play-again-button">
-                                Play Again
-                            </button>
-                        )}
-                        {!gameData.isHost && (
-                            <button onClick={handleLobby} className="play-again-button">
-                                Return to Lobby
-                            </button>
-                        )}
-                    </div>
-                </div>
+            <div className="winner-container">
+                <div className="winner-text">And the winner is...</div>
+                <div className="winner-name">{winner[0]}</div>
+                <div className="winner-score">with {winner[1].score} points!</div>
+                {gameData.isHost && (
+                    <button onClick={handlePlayAgain} className="play-again-button">
+                        Play Again
+                    </button>
+                )}
+                {!gameData.isHost && (
+                    <button onClick={handleLobby} className="play-again-button">
+                        Return to Lobby
+                    </button>
+                )}
             </div>
         );
     }    

@@ -1,34 +1,34 @@
 {
   "questions": [
     {
-      "question": "What is the rarest M&M color?",
+      "question": "What is the main substance used to make a crayon?",
       "options": [
-        "Robert Brown",
-        "little",
-        "Brown",
-        "John Brown"
+        "Trivia",
+        "substance",
+        "tuba",
+        "Brass"
       ],
-      "correct_answer": "Brown"
+      "correct_answer": "Brass"
     },
     {
-      "question": "What is the name of the object that brings bad luck if broken?",
+      "question": "Which country has a red flag with a star?",
       "options": [
-        "Answer",
-        "object",
-        "Option 3",
-        "A mirror"
+        "Al-Magrib",
+        "Marruecos",
+        "Cuba",
+        "Morocco"
       ],
-      "correct_answer": "A mirror"
+      "correct_answer": "Morocco"
     },
     {
-      "question": "What is the smallest unit of memory?",
+      "question": "What country is bordered by Germany, Czech Republic, Slovakia and Ukraine?",
       "options": [
-        "kilobyte",
-        "K",
-        "dried",
-        "memory"
+        "sport",
+        "grappling",
+        "Cricket",
+        "Wrestling"
       ],
-      "correct_answer": "kilobyte"
+      "correct_answer": "Wrestling"
     }
   ]
 }
