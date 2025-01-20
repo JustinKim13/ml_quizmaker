@@ -100,24 +100,13 @@ function GamePlay({ questions, onFinish, gameData }) {
                 console.log(`Player ${data.playerName} answered. Time left: ${data.playerTimeLeft}`);
             }
                      
+            if (data.type === "reset_game") {
+                onFinish();
+            }
 
             if (data.type === 'game_completed') {
                 setGameCompleted(true);
             }       
-            
-            if (data.type === "game_reset") {
-                setCurrentQuestion(0); // Reset to the first question
-                setScore(0); // Reset the score
-                setShowAnswer(false); // Reset the answer view
-                setGameCompleted(false); // Reset game completion state
-                setPlayersAnswered(0); // Reset the players who answered
-                setTimeLeft(10); // Reset the timer
-                setUiSelectedAnswer(null); // Clear the selected answer
-                setHasAnswered(false); // Reset the answered state
-                playerTimesRef.current = {}; // Clear the player times
-                setPlayerScores({}); // Reset player scores
-                console.log("Game reset successfully.");
-            }
         };
 
         setWs(websocket);
@@ -129,7 +118,7 @@ function GamePlay({ questions, onFinish, gameData }) {
         return () => {
             websocket.close();
         };
-    }, [gameData.gameCode, gameData.playerName, questions]);
+    }, [gameData.gameCode, gameData.playerName, questions, onFinish]);
 
     // Handle page navigation and refresh
     useEffect(() => {
@@ -236,29 +225,13 @@ function GamePlay({ questions, onFinish, gameData }) {
     const question = questions[currentQuestion];
 
     const handlePlayAgain = () => {
-        setCurrentQuestion(0); // Reset to the first question
-        setScore(0); // Reset the score
-        setShowAnswer(false); // Reset the answer view
-        setGameCompleted(false); // Reset game completion state
-        setPlayersAnswered(0); // Reset the players who answered
-        setTimeLeft(10); // Reset the timer
-        setUiSelectedAnswer(null); // Clear the selected answer
-        setHasAnswered(false); // Reset the answered state
-        playerTimesRef.current = {}; // Clear the player times
-        setPlayerScores({}); // Reset player scores
-    
-        // Send a "reset_game" event to the server
-        if (ws) {
-            ws.send(
-                JSON.stringify({
-                    type: "reset_game",
-                    gameCode: gameData.gameCode,
-                })
-            );
+        if (ws && gameData.isHost) {
+            ws.send(JSON.stringify({
+                type: 'reset_game',
+                gameCode: gameData.gameCode,
+            }))
         }
-    
-        onFinish(); // Notify parent to reset or navigate as necessary
-    };    
+    };     
 
     const handleLobby = () => {
         onFinish();
