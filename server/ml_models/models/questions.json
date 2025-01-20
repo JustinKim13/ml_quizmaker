@@ -1,37 +1,37 @@
 {
   "questions": [
     {
-      "question": "What is the largest lizard?",
+      "question": "What country is the band \"The Cranberries\" from?",
       "options": [
-        "Komodo",
-        "Komodo dragon",
-        "dragon",
-        "lizard"
+        "country",
+        "North",
+        "Ireland",
+        "Hibernia"
       ],
-      "correct_answer": "Komodo dragon",
-      "context": "y in \u2018Back to the Future\u2019? Answer: Marty McFly Trivia Question: What was the predecessor to the United Nations? Answer: League of Nations Trivia Question: A flamboyance is a group of what animals? Answer: Flamingos Trivia Question: What color is a polar bear\u2019s skin? Answer: Black Trivia Question: What is the largest lizard? Answer: Komodo dragon Trivia Question: The male of what species testicles explode on mating and then dies? Answer: Honeybee Trivia Question: Europe is separated from Africa by which sea?"
+      "correct_answer": "Ireland",
+      "context": "n: What candy ran the promotion for baseball\u2019s one millionth run? Answer: Tootsie Rolls Trivia Question: What country is the band \u201cThe Cranberries\u201d from? Answer: Ireland Trivia Question: Blueberries are native to which continent? Answer: North America Trivia Question: A book by Barack Obama is titled \u201cThe Audacity of \u201d what? Answer: Hope Trivia Question: What type of lens has a thin middle and makes objects appear smaller? Answer: Concave Trivia Question: What is the Hawaiian name for yellow fin tuna? Answe"
     },
     {
-      "question": "What country produced the most strawberries in 2016?",
+      "question": "What is the capital of what country?",
       "options": [
-        "Who",
-        "China",
-        "Guernica",
-        "PRC"
+        "Hispaniola",
+        "Hayti",
+        "Canada",
+        "Haiti"
       ],
-      "correct_answer": "China",
-      "context": "vie? Answer: Restricted Trivia Question: Who played Cher Horowitz in the movie \u201cClueless\u201d? Answer: Alicia Silverstone Trivia Question: Which artist painted, \u201cGuernica\u201d? Answer: Pablo Picasso Trivia Question: What country produced the most strawberries in 2016? Answer: China Trivia Question: The traditional Wimbledon colors are green and what? Answer: Purple Trivia Question: On the television show \u201cHow I Met Y our Mother\u201d , what is Lily\u2019s occupation? Answer: Kindergarten Teacher Trivia Question: Which art mo"
+      "correct_answer": "Haiti",
+      "context": "Trivia Question: Port-au-Prince is the capital of which country? Answer: Haiti Trivia Question: What major movie actor\u2019s first role was in \u201c A Nightmare On Elm Street\u201d? Answer: Johnny Depp Trivia Question: What was Toyota\u2019s first popular hybrid car called? Answer: Prius Trivia Question: What did the first vending machine dispense? Answer: Holy Water Trivia Question: Who created the animated series \u201cFuturama\u201d? Answer: Matt Groening Trivia Question: What is the most populous city in Canada? Answer: Toronto Tr"
     },
     {
-      "question": "What is the name of the largest supermarket chain in the US?",
+      "question": "What is the real first name of Marilyn Monroe?",
       "options": [
-        "supermarket",
-        "Kroger Co.",
-        "city",
-        "Option 3"
+        "Norma Jeane",
+        "Marilyn",
+        "Jeane",
+        "Norma"
       ],
-      "correct_answer": "Kroger Co.",
-      "context": ": Joan of Arc Trivia Question: What U.S. President coined the phrase \u201cGood to the last drop, \u201d referring to coffee? Answer: Theodore Roosevelt Trivia Question: What is the biggest supermarket chain in the U.S.? Answer: Kroger Co. Trivia Question: On every continent there is a city named what? Answer: Rome Trivia Question: Which name are the Sandwich Islands better known as? Answer: Hawaii"
+      "correct_answer": "Norma Jeane",
+      "context": "mes Trivia Question: What is the real first name of Marilyn Monroe? Answer: Norma Jeane Trivia Question: What country has the most vending machines per capita? Answer: Japan Trivia Question: What\u2019s the most populous city in the United States? Answer: New Y ork City Trivia Question: Which fruit floats because 25% of its volume is air? Answer: Apple Trivia Question: What\u2019s the brightest star in the sky? Answer: Sirius Trivia Question: The Eiffel Tower was originally intended for what city? Answer: Barcelona T"
     }
   ]
 }

@@ -90,6 +90,7 @@ function GamePlay({ questions, onFinish, gameData }) {
                     setCurrentContext(data.context || ""); // Set context
                     setTimeLeft(10); // Reset the timer
                 } else {
+                    console.log("setting game completed to true");
                     setGameCompleted(true);
                 }
             }            
@@ -104,9 +105,13 @@ function GamePlay({ questions, onFinish, gameData }) {
                 onFinish();
             }
 
+            if (data.type === 'show_leaderboard') {
+                setShowLeaderboard(data.show);
+            }
+
             if (data.type === 'game_completed') {
                 setGameCompleted(true);
-            }       
+            }      
         };
 
         setWs(websocket);
@@ -189,35 +194,47 @@ function GamePlay({ questions, onFinish, gameData }) {
     }
 
     const nextQuestion = () => {
-        if (!showLeaderboard) { // when we first click next to get to leaderboard
-            if (currentQuestion < questions.length) {
-                setShowLeaderboard(true); // Show the leaderboard first
-            } else {
-                if (ws && gameData.isHost) {
-                    ws.send(
-                        JSON.stringify({
-                            type: "next_question",
-                            gameCode: gameData.gameCode,
-                            currentQuestion: currentQuestion + 1, // Increment the question
-                        })
-                    );
-                }
-                setGameCompleted(true);
+        if (!showLeaderboard) {
+            // First step: Show leaderboard
+            setShowLeaderboard(true);
+            if (ws && gameData.isHost) {
+                ws.send(
+                    JSON.stringify({
+                        type: "show_leaderboard",
+                        gameCode: gameData.gameCode,
+                        show: true,
+                    })
+                );
             }
-        } else { // going from leaderboard to next question
-            setShowLeaderboard(false); // Hide leaderboard
-            if (currentQuestion < questions.length - 1) {
-                if (ws && gameData.isHost) {
+        } else {
+            // Second step: Hide leaderboard and move to the next question
+            setShowLeaderboard(false);
+            if (ws && gameData.isHost) {
+                ws.send(
+                    JSON.stringify({
+                        type: "show_leaderboard",
+                        gameCode: gameData.gameCode,
+                        show: false,
+                    })
+                );
+    
+                if (currentQuestion < questions.length - 1) {
                     ws.send(
                         JSON.stringify({
                             type: "next_question",
                             gameCode: gameData.gameCode,
-                            currentQuestion: currentQuestion + 1, // Increment the question
+                            currentQuestion: currentQuestion + 1,
                         })
                     );
+                } else {
+                    setGameCompleted(true);
+                    ws.send(
+                        JSON.stringify({
+                            type: "game_completed",
+                            gameCode: gameData.gameCode,
+                        })
+                    )
                 }
-            } else {
-                setGameCompleted(true); // End the game if it's the last question
             }
         }
     };    
@@ -264,9 +281,11 @@ function GamePlay({ questions, onFinish, gameData }) {
                         <h3>Context:</h3>
                         <p>{currentContext}</p> {/* Display context here */}
                     </div>
-                    <button onClick={nextQuestion} className="next-button">
-                        Next
-                    </button>
+                    {gameData.isHost && (
+                        <button onClick={nextQuestion} className="next-button">
+                            Next
+                        </button>
+                    )}
                 </div>
             </div>
         );

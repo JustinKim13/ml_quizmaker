@@ -339,14 +339,19 @@ wss.on('connection', (ws) => {
                     if (currentGame) {
                         currentGame.currentQuestion = data.currentQuestion; // Update to next question
                         currentGame.answeredPlayers = new Map(); // Reset answered players
-                        
-                        broadcastToGame(data.gameCode, {
-                            type: "next_question",
-                            currentQuestion: currentGame.currentQuestion,
-                            playersAnswered: 0,
-                            playerCount: currentGame.players.length,
-                        });
-                
+                        if (currentGame.currentQuestion >= currentGame.questions.length) {
+                            console.log(`Game completed for gameCode: ${data.gameCode}`);
+                            broadcastToGame(data.gameCode, {
+                                type: 'game_completed',
+                            });
+                        } else {
+                            broadcastToGame(data.gameCode, {
+                                type: "next_question",
+                                currentQuestion: currentGame.currentQuestion,
+                                playersAnswered: 0,
+                                playerCount: currentGame.players.length,
+                            });
+                        }   
                         // Start the timer ONLY after the host triggers "Next Question"
                         startGameTimer(data.gameCode);
                     } else {
@@ -355,12 +360,33 @@ wss.on('connection', (ws) => {
                     break;
                 }
 
+                case 'show_leaderboard': {
+                    const leaderboardGame = activeGames.get(data.gameCode);
+                    if (leaderboardGame) {
+                        broadcastToGame(data.gameCode, {
+                            type: 'show_leaderboard',
+                            gameCode: data.gameCode,
+                            show: data.show, // Use the correct 'show' value from the client
+                        });
+                    }
+                    break; // Add missing break statement
+                }                
+
                 case 'reset_game': {
                     const curGame = activeGames.get(data.gameCode);
                     if (curGame) {
                         curGame.answeredPlayers = new Map();
                         broadcastToGame(data.gameCode, {
                             type: "reset_game", 
+                        })
+                    }
+                }
+
+                case 'game_completed': {
+                    const completeGame = activeGames.get(data.gameCode);
+                    if (completeGame) {
+                        broadcastToGame(data.gameCode, {
+                            type: "game_completed",
                         })
                     }
                 }
