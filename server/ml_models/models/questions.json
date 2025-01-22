@@ -1,37 +1,37 @@
 {
   "questions": [
     {
-      "question": "What country is the band \"The Cranberries\" from?",
+      "question": "What is the upper limit of the temperature table?",
       "options": [
-        "country",
-        "North",
-        "Ireland",
-        "Hibernia"
+        "300",
+        "two",
+        "three hundred",
+        "size"
       ],
-      "correct_answer": "Ireland",
-      "context": "n: What candy ran the promotion for baseball\u2019s one millionth run? Answer: Tootsie Rolls Trivia Question: What country is the band \u201cThe Cranberries\u201d from? Answer: Ireland Trivia Question: Blueberries are native to which continent? Answer: North America Trivia Question: A book by Barack Obama is titled \u201cThe Audacity of \u201d what? Answer: Hope Trivia Question: What type of lens has a thin middle and makes objects appear smaller? Answer: Concave Trivia Question: What is the Hawaiian name for yellow fin tuna? Answe"
+      "correct_answer": "300",
+      "context": "it of temperature table \u00ab/ upper = 300; /* upper limit #*/ step = 20; /* step size */ fahr = lower; while (fahr <= upper) { celsius = 5 * (fahr-32) / 9; printf (\"%d\\t%d\\n\", fahr, celsius); fahr = fahr + step; } The two lines /* print Fahrenheit-Celsius table for fahr = 0, 20, ..., 300 \u00ab*/ are a comment, which in this case explains briefly what the program does. Any characters between /* and */ are ignored by the compiler; they may be used freely to make a program easier to understand. Comments may appear an"
     },
     {
-      "question": "What is the capital of what country?",
+      "question": "What is the indirection or dereferencing operator?",
       "options": [
-        "Hispaniola",
-        "Hayti",
-        "Canada",
-        "Haiti"
+        "unary",
+        "pointer",
+        "operator",
+        "unary operator *"
       ],
-      "correct_answer": "Haiti",
-      "context": "Trivia Question: Port-au-Prince is the capital of which country? Answer: Haiti Trivia Question: What major movie actor\u2019s first role was in \u201c A Nightmare On Elm Street\u201d? Answer: Johnny Depp Trivia Question: What was Toyota\u2019s first popular hybrid car called? Answer: Prius Trivia Question: What did the first vending machine dispense? Answer: Holy Water Trivia Question: Who created the animated series \u201cFuturama\u201d? Answer: Matt Groening Trivia Question: What is the most populous city in Canada? Answer: Toronto Tr"
+      "correct_answer": "unary operator *",
+      "context": "rray elements. It cannot be applied to expressions, constants, or register variables. The unary operator * is the indirection or dereferencing operator; when applied to a pointer, it accesses the object the pointer points to. Suppose that x and y are integers and ip is a pointer to int. This artificial sequence shows how to declare a pointer and how to use & and #: int x = 1, y = 2, 2[10]; int #ip; /* ip is a pointer to int */ ip = &x; /* ip now points to x */ y = #ip; /* y is now 1 */ *ip = 0; /* x is now"
     },
     {
-      "question": "What is the real first name of Marilyn Monroe?",
+      "question": "What does the next program use to print the follow- ing table of Fahrenheit temperatures?",
       "options": [
-        "Norma Jeane",
-        "Marilyn",
-        "Jeane",
-        "Norma"
+        "formula",
+        "Arithmetic",
+        "the formula *C = (5/9)(\u00b0 F\u201432)",
+        "Fahrenheit"
       ],
-      "correct_answer": "Norma Jeane",
-      "context": "mes Trivia Question: What is the real first name of Marilyn Monroe? Answer: Norma Jeane Trivia Question: What country has the most vending machines per capita? Answer: Japan Trivia Question: What\u2019s the most populous city in the United States? Answer: New Y ork City Trivia Question: Which fruit floats because 25% of its volume is air? Answer: Apple Trivia Question: What\u2019s the brightest star in the sky? Answer: Sirius Trivia Question: The Eiffel Tower was originally intended for what city? Answer: Barcelona T"
+      "correct_answer": "the formula *C = (5/9)(\u00b0 F\u201432)",
+      "context": "above. 0 1.2 Variables and Arithmetic Expressions The next program uses the formula *C = (5/9)(\u00b0 F\u201432) to print the follow- ing table of Fahrenheit temperatures and their centigrade or Celsius equivalents: 0 -17 20 -6 40 4 60 15 80 26 100 37 120 48 140 60 160 71 180 82 200 93 220 104 240 115 260 126 280 137 300 148 The program itself still consists of the definition of a single function named main. It is longer than the one that printed \u201chello, world\u201d, but not compli- cated. It introduces several new ideas"
     }
   ]
 }

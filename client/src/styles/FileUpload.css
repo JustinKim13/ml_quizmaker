@@ -323,3 +323,75 @@
     background: #f8f9fa;
     margin: 0;
 }
+
+.file-list {
+    max-height: 180px; /* Adjust as needed */
+    overflow-y: auto;
+    margin-top: 10px;
+    padding: 10px 0; /* Add spacing for files without a boxy feel */
+    background-color: transparent; /* No background color for blending */
+}
+
+.file-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.file-list::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2); /* Subtle scrollbar to blend in */
+    border-radius: 4px;
+}
+
+.file-list::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.4); /* Slightly darker on hover */
+}
+
+.file-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    font-size: 14px;
+    transition: background-color 0.2s ease;
+}
+
+.file-info:hover {
+    background-color: rgba(0, 0, 0, 0.03); /* Very subtle hover effect */
+    border-radius: 4px; /* Rounded corners only when hovering */
+}
+
+.file-icon {
+    margin-right: 10px;
+    font-size: 16px;
+    color: #555555; /* Neutral icon color */
+}
+
+.file-name {
+    font-weight: 500; /* Slightly bold for emphasis */
+    color: #222222; /* Darker text for readability */
+}
+
+.file-actions {
+    display: flex;
+    align-items: center;
+}
+
+.file-size {
+    font-size: 12px;
+    color: #666666; /* Muted text color for file size */
+    margin-right: 10px;
+}
+
+.remove-file-button {
+    background-color: transparent; /* No background for blending */
+    color: #ff6b6b; /* Subtle red for delete action */
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 20px;
+    transition: color 0.2s ease;
+}
+
+.remove-file-button:hover {
+    color: #ff3b3b; /* Slightly darker red on hover */
+}

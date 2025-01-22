@@ -62,44 +62,51 @@ const FileUpload = ({ setGameData, username, onBack }) => {
                 <h2>Create Your Quiz</h2>
                 <div className="form-container">
                     <div className="file-input-wrapper">
-                        <label className="file-input-label">
-                            <input
-                                type="file"
-                                accept=".pdf"
-                                multiple
-                                className="file-input"
-                                onChange={(e) => {
-                                    setFiles(Array.from(e.target.files));
+                    <div className="file-input-wrapper">
+                    <label className="file-input-label">
+                        <input
+                            type="file"
+                            accept=".pdf"
+                            multiple
+                            className="file-input"
+                            onChange={(e) => {
+                                const selectedFiles = Array.from(e.target.files);
+                                if (files.length + selectedFiles.length > 5) {
+                                    setError("You can upload a maximum of 5 files.");
+                                } else {
+                                    setFiles((prevFiles) => [...prevFiles, ...selectedFiles]);
                                     setError("");
-                                }}
-                            />
-                            📄 Choose PDF Files
-                        </label>
+                                }
+                            }}
+                        />
+                        📄 Choose PDF Files
+                    </label>
 
-                        {files.length > 0 && (
-                            <ul className="file-list">
-                                {files.map((file, index) => (
-                                    <li key={index}>
-                                        <div className="file-info">
-                                            <span className="file-icon">📄</span>
-                                            <span className="file-name">{file.name}</span>
-                                        </div>
-                                        <div className="file-actions">
-                                            <span className="file-size">
-                                                {(file.size / 1024 / 1024).toFixed(2)} MB
-                                            </span>
-                                            <button
-                                                className="remove-file-button"
-                                                onClick={() => handleRemoveFile(index)}
-                                            >
-                                                x
-                                            </button>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
+                    {files.length > 0 && (
+                        <ul className="file-list">
+                            {files.map((file, index) => (
+                                <li key={index}>
+                                    <div className="file-info">
+                                        <span className="file-icon">📄</span>
+                                        <span className="file-name">{file.name}</span>
+                                    </div>
+                                    <div className="file-actions">
+                                        <span className="file-size">
+                                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                                        </span>
+                                        <button
+                                            className="remove-file-button"
+                                            onClick={() => handleRemoveFile(index)}
+                                        >
+                                            x
+                                        </button>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            </div>
 
                     <div className="input-group">
                         <input
