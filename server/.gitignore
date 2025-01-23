@@ -6,3 +6,5 @@ ml_models/data_preprocessing/pdf_files/
 *.mp3
 *.mp4
 *.wav
+
+env/
