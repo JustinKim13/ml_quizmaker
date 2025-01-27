@@ -345,11 +345,13 @@ wss.on('connection', (ws) => {
                                 type: 'game_completed',
                             });
                         } else {
+                            const currentQuestionData = currentGame.questions[currentGame.currentQuestion]; // Get the current question object
                             broadcastToGame(data.gameCode, {
                                 type: "next_question",
                                 currentQuestion: currentGame.currentQuestion,
                                 playersAnswered: 0,
                                 playerCount: currentGame.players.length,
+                                context: currentQuestionData.context || "",
                             });
                         }   
                         // Start the timer ONLY after the host triggers "Next Question"
