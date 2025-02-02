@@ -1,124 +1,84 @@
-import spacy
-import random
-from nltk.corpus import wordnet
+import os
+from sense2vec import Sense2Vec
+from sentence_transformers import SentenceTransformer
+from typing import List, Dict
 from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.feature_extraction.text import CountVectorizer
-from sentence_transformers import SentenceTransformer, util
-import torch
+import numpy as np
 
-# Use smaller models
-nlp = spacy.load("en_core_web_sm")
-embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+# Load models
+s2v_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../s2v_old"))
+s2v = Sense2Vec().from_disk(s2v_path)
+model = SentenceTransformer('all-MiniLM-L12-v2')
 
-# Cache for embeddings
-embedding_cache = {}
+def mmr(doc_embedding: np.ndarray,
+        word_embeddings: np.ndarray,
+        words: List[str],
+        top_n: int = 5,
+        diversity: float = 0.9) -> List[str]:
+    """Calculate Maximal Marginal Relevance (MMR)."""
+    word_doc_similarity = cosine_similarity(word_embeddings, doc_embedding)
+    word_similarity = cosine_similarity(word_embeddings)
 
-def get_embedding(text):
-    """Cache embeddings for reuse."""
-    if text not in embedding_cache:
-        with torch.no_grad():  # Disable gradient calculation for inference
-            embedding_cache[text] = embedding_model.encode(text, convert_to_tensor=True)
-    return embedding_cache[text]
+    keywords_idx = [np.argmax(word_doc_similarity)]
+    candidates_idx = [i for i in range(len(words)) if i != keywords_idx[0]]
 
-def batch_encode_texts(texts):
-    """Encode multiple texts at once."""
-    unique_texts = list(set(texts))  # Remove duplicates
-    with torch.no_grad():
-        embeddings = embedding_model.encode(unique_texts, convert_to_tensor=True, batch_size=32)
-    return dict(zip(unique_texts, embeddings))
+    for _ in range(top_n - 1):
+        candidate_similarities = word_doc_similarity[candidates_idx, :]
+        target_similarities = np.max(word_similarity[candidates_idx][:, keywords_idx], axis=1)
 
-def extract_relevant_named_entities(context, correct_answer):
-    """Extract named entities efficiently."""
-    doc = nlp(context)
-    answer_doc = nlp(correct_answer)
-    correct_type = answer_doc.ents[0].label_ if answer_doc.ents else None
+        mmr = (1-diversity) * candidate_similarities - diversity * target_similarities.reshape(-1, 1)
+        mmr_idx = candidates_idx[np.argmax(mmr)]
+
+        keywords_idx.append(mmr_idx)
+        candidates_idx.remove(mmr_idx)
+
+    return [words[idx] for idx in keywords_idx]
+
+def create_multiple_choice(question: str, correct_answer: str, context: str) -> Dict:
+    """Generate a multiple-choice question with distractors using sense2vec."""
+    # Prepare the word for sense2vec
+    word = correct_answer.lower().replace(" ", "_")
     
-    entities = set()
-    for ent in doc.ents:
-        if ent.text.lower() != correct_answer.lower():
-            if not correct_type or ent.label_ == correct_type:
-                entities.add(ent.text)
-    return list(entities)
-
-def generate_numeric_distractors(correct_answer, num_distractors=3):
-    """Generate numeric distractors (unchanged as it's already fast)."""
     try:
-        correct_number = int(correct_answer)
-        distractors = [str(correct_number + i) for i in range(-5, 6) if i != 0]
-        return random.sample(distractors, min(num_distractors, len(distractors)))
-    except ValueError:
-        return []
-
-def generate_wordnet_distractors(correct_answer, num_distractors=5):
-    """Generate WordNet distractors efficiently."""
-    distractors = set()
-    for syn in wordnet.synsets(correct_answer)[:3]:  # Limit synsets
-        distractors.update(lemma.name().replace("_", " ") for lemma in syn.lemmas())
-    distractors.discard(correct_answer)
-    return list(distractors)[:num_distractors]
-
-def generate_contextual_distractors(correct_answer, context, num_distractors=5):
-    """Generate contextual distractors more efficiently."""
-    words = list(set(token.text for token in nlp(context) if token.is_alpha and len(token.text) > 2))
-    if len(words) <= num_distractors:
-        return words
-
-    # Batch process embeddings
-    embeddings = batch_encode_texts([correct_answer] + words)
-    correct_embed = embeddings[correct_answer]
-    
-    # Calculate similarities in batch
-    similarities = util.pytorch_cos_sim(correct_embed, torch.stack([embeddings[w] for w in words]))[0]
-    
-    # Get top similar words
-    top_indices = similarities.argsort(descending=True)[:num_distractors+1]
-    return [words[i] for i in top_indices if words[i] != correct_answer][:num_distractors]
-
-def filter_similar_distractors(correct_answer, distractors, similarity_threshold=0.8):
-    """Filter distractors efficiently using batch processing."""
-    if not distractors:
-        return []
+        # Get the best sense and similar words
+        sense = s2v.get_best_sense(word)
+        most_similar = s2v.most_similar(sense, n=20)
         
-    # Batch encode all texts
-    all_embeddings = batch_encode_texts([correct_answer] + distractors)
-    correct_embed = all_embeddings[correct_answer]
-    
-    filtered_distractors = []
-    distractor_embeds = torch.stack([all_embeddings[d] for d in distractors])
-    
-    # Calculate similarities in one batch
-    similarities = util.pytorch_cos_sim(correct_embed, distractor_embeds)[0]
-    
-    for idx, score in enumerate(similarities):
-        if score < similarity_threshold:
-            filtered_distractors.append(distractors[idx])
-            
-    return filtered_distractors
+        # Extract distractors
+        distractors = []
+        for each_word in most_similar:
+            append_word = each_word[0].split("|")[0].replace("_", " ")
+            if append_word not in distractors and append_word != correct_answer:
+                distractors.append(append_word)
+        
+        if not distractors:
+            return {
+                "question": question,
+                "options": [correct_answer] + [f"Option {i+1}" for i in range(3)],
+                "answer": correct_answer
+            }
 
-def create_multiple_choice(question, correct_answer, context, num_distractors=3):
-    """Create multiple choice question with optimized distractor generation."""
-    distractors = set()
-    
-    # Generate different types of distractors in parallel
-    if len(correct_answer.split()) == 1:
-        distractors.update(generate_wordnet_distractors(correct_answer, num_distractors))
-    
-    contextual_distractors = generate_contextual_distractors(correct_answer, context, num_distractors)
-    distractors.update(contextual_distractors)
-    
-    # Filter distractors efficiently
-    filtered_distractors = filter_similar_distractors(correct_answer, list(distractors))
-    
-    # Ensure minimum number of distractors
-    while len(filtered_distractors) < num_distractors:
-        filtered_distractors.append(f"Option {len(filtered_distractors) + 1}")
-    
-    # Create final question
-    options = [correct_answer] + random.sample(filtered_distractors, num_distractors)
-    random.shuffle(options)
-    
-    return {
-        "question": question,
-        "options": options,
-        "answer": correct_answer
-    }
+        # Get embeddings
+        all_options = [correct_answer] + distractors
+        answer_embedding = model.encode([correct_answer])
+        distractor_embeddings = model.encode(all_options)
+        
+        # Use MMR to get diverse options
+        final_options = mmr(answer_embedding, distractor_embeddings, all_options, top_n=4)
+        
+        # First option will be the correct answer, rest are distractors
+        options = [opt.title() for opt in final_options[:4]]  # Title case all options
+        
+        return {
+            "question": question,
+            "options": options,
+            "answer": correct_answer
+        }
+        
+    except Exception as e:
+        # Fallback if sense2vec fails
+        return {
+            "question": question,
+            "options": [correct_answer] + [f"Option {i+1}" for i in range(3)],
+            "answer": correct_answer
+        }
