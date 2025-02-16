@@ -1,37 +1,37 @@
 {
   "questions": [
     {
-      "question": "What is the capital of what country?",
+      "question": "What is the main substance used to make a crayon?",
       "options": [
-        "Haiti",
-        "Hayti",
-        "Canada",
-        "country"
+        "Polymer",
+        "Reamer",
+        "Brass",
+        "Jacketed"
       ],
-      "correct_answer": "Haiti",
-      "context": "d Trivia Question: Port-au-Prince is the capital of which country? Answer: Haiti Trivia Question: What major movie actor\u2019s first role was in \u201c A Nightmare On Elm Street\u201d? Answer: Johnny Depp Trivia Question: What was Toyota\u2019s first popular hybrid car called? Answer: Prius Trivia Question: What did the first vending machine dispense? Answer: Holy Water Trivia Question: Who created the animated series \u201cFuturama\u201d? Answer: Matt Groening Trivia Question: What is the most populous city in Canada? Answer: Toronto"
+      "correct_answer": "Brass",
+      "context": "rivia Question: What candy was used to lure E.T. in the 1982 movie \u201cE.T.: The Extra-Terrestri - al\u201d? Answer: Reese\u2019s Pieces Trivia Question: The tuba is the largest member of which musical family? Answer: Brass Trivia Question: Which is the main substance used to make a crayon? Answer: Wax Trivia Question: The video game \u201cHappy Feet\u201d features what animals? Answer: Penguins Trivia Question: What actress won her first Oscar for \u201cKramer vs. Kramer\u201d? Answer: Meryl Streep Trivia Question: What object of Dwight\u2019s"
+    },
+    {
+      "question": "Which team holds the record for the most Super Bowl appearances?",
+      "options": [
+        "Super Bowl Xlix",
+        "Green Bay Packers",
+        "New England Patriots",
+        "Baltimore Ravens"
+      ],
+      "correct_answer": "New England Patriots",
+      "context": "which ship did Charles Darwin make his famous expedition, which led to his theory of evolution? Answer: HMS Beagle Trivia Question: In which film did father and son actors Will and Jaden Smith first appear together? Answer: The Pursuit of Happiness Trivia Question: Which NFL team holds the record for the most Super Bowl appearances? Answer: New England Patriots Trivia Question: In which city is Jim Morrison buried? Answer: Paris Trivia Question: Which actress keeps her Oscar in her bathroom so guests can h"
     },
     {
       "question": "What is the real first name of Marilyn Monroe?",
       "options": [
-        "Norma",
+        "Option 2",
         "Norma Jeane",
-        "Marilyn",
-        "Jeane"
+        "Option 3",
+        "Option 1"
       ],
       "correct_answer": "Norma Jeane",
       "context": "imes Trivia Question: What is the real first name of Marilyn Monroe? Answer: Norma Jeane Trivia Question: What country has the most vending machines per capita? Answer: Japan Trivia Question: What\u2019s the most populous city in the United States? Answer: New Y ork City Trivia Question: Which fruit floats because 25% of its volume is air? Answer: Apple Trivia Question: What\u2019s the brightest star in the sky? Answer: Sirius Trivia Question: The Eiffel Tower was originally intended for what city? Answer: Barcelona"
-    },
-    {
-      "question": "What is the name of the prehistoric town where the Flinstones live?",
-      "options": [
-        "basics",
-        "fundamental principle",
-        "continent",
-        "Bedrock"
-      ],
-      "correct_answer": "Bedrock",
-      "context": ": Sirius Trivia Question: The Eiffel Tower was originally intended for what city? Answer: Barcelona Trivia Question: In which of Britney\u2019s video does she appear as a stewardess? Answer: Toxic Trivia Question: Carrots are a good source of which vitamin? Answer: Vitamin A Trivia Question: What is the name of the prehistoric town in which The Flinstones live? Answer: Bedrock Trivia Question: What is the driest continent? Answer: Antartica Trivia Question: Which US state has the longest cave system in the world"
     }
   ]
 }
