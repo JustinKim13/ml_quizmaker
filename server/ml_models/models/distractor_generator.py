@@ -4,6 +4,7 @@ from sentence_transformers import SentenceTransformer
 from typing import List, Dict
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
+import random
 
 # Load models
 s2v_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../s2v_old"))
@@ -18,7 +19,6 @@ def mmr(doc_embedding: np.ndarray,
     """Calculate Maximal Marginal Relevance (MMR)."""
     word_doc_similarity = cosine_similarity(word_embeddings, doc_embedding)
     word_similarity = cosine_similarity(word_embeddings)
-
     keywords_idx = [np.argmax(word_doc_similarity)]
     candidates_idx = [i for i in range(len(words)) if i != keywords_idx[0]]
 
@@ -68,6 +68,7 @@ def create_multiple_choice(question: str, correct_answer: str, context: str) -> 
         
         # First option will be the correct answer, rest are distractors
         options = [opt.title() for opt in final_options[:4]]  # Title case all options
+        random.shuffle(options)
         
         return {
             "question": question,
@@ -76,9 +77,11 @@ def create_multiple_choice(question: str, correct_answer: str, context: str) -> 
         }
         
     except Exception as e:
-        # Fallback if sense2vec fails
+        options = [correct_answer] + [f"Option {i+1}" for i in range(3)]
+        random.shuffle(options)  # Shuffle even in case of failure
+
         return {
             "question": question,
-            "options": [correct_answer] + [f"Option {i+1}" for i in range(3)],
+            "options": options,
             "answer": correct_answer
         }
