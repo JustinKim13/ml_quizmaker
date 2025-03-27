@@ -50,11 +50,17 @@ def mmr(doc_embedding: np.ndarray,
 
     return [words[idx] for idx in keywords_idx]
 
+def clean_answer_for_lookup(answer: str) -> str:
+    words = answer.strip().split()
+    if words[0].lower() in {"a", "an", "the"}:
+        words = words[1:]
+    return "_".join(words).lower()
+
 def create_multiple_choice(question: str, correct_answer: str, context: str) -> Dict:
     print(f"\n[DEBUG] Generating MCQ for question: {question}")
     print(f"[DEBUG] Correct answer: {correct_answer}")
 
-    lookup_word = correct_answer.lower().replace(" ", "_")
+    lookup_word = clean_answer_for_lookup(correct_answer)
     print(f"[DEBUG] Sense2Vec lookup word: {lookup_word}")
 
     try:
