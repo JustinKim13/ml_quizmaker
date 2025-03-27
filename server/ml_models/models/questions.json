@@ -1,37 +1,37 @@
 {
   "questions": [
     {
-      "question": "What is the name of the prehistoric town where the Flinstones live?",
+      "question": "What is the national dish of Spain?",
       "options": [
-        "Bedrock",
-        "Option 3",
-        "Option 1",
-        "Option 2"
+        "Paella",
+        "Hotpot",
+        "Dumplings",
+        "Sauerkraut"
       ],
-      "correct_answer": "Bedrock",
-      "context": ": Sirius Trivia Question: The Eiffel Tower was originally intended for what city? Answer: Barcelona Trivia Question: In which of Britney\u2019s video does she appear as a stewardess? Answer: Toxic Trivia Question: Carrots are a good source of which vitamin? Answer: Vitamin A Trivia Question: What is the name of the prehistoric town in which The Flinstones live? Answer: Bedrock Trivia Question: What is the driest continent? Answer: Antartica Trivia Question: Which US state has the longest cave system in the world"
+      "correct_answer": "Paella",
+      "context": "hat is the national dish of Spain? Answer: Paella Trivia Question: Which horoscope sign has a crab? Answer: Cancer Trivia Question: What color is Absinthe? Answer: Green Trivia Question: The Statue of Liberty was given to the US by which country? Answer: France Trivia Question: Which US city is known as the City of Brotherly Love? Answer:Philadelphia Trivia Question: What substance are nails made out of? Answer: Keratin Trivia Question: How many children does Oprah Winfrey have? Answer: Zero Trivia Question"
     },
     {
-      "question": "What country borders Germany, Czech Republic, Slovakia, and Ukraine?",
+      "question": "What type of farm did Taylor Swift grow up on?",
       "options": [
-        "Option 1",
-        "Wrestling",
         "Option 2",
-        "Option 3"
-      ],
-      "correct_answer": "Wrestling",
-      "context": "Trivia Question: Tom Cruise considered pursuing a career in what sport before being injured? Answer: Wrestling Trivia Question: What country is bordered by Germany, the Czech Republic, Slovakia and the Ukraine? Answer: Poland Trivia Question: The Da Vinci Code opens with a murder in which famous museum? Answer: Lourve Trivia Question: Which insect can indicate the air temperature? Answer: Cricket Trivia Question: What candy ran the promotion for baseball\u2019s one millionth run? Answer: Tootsie Rolls Trivia Qu"
-    },
-    {
-      "question": "What is the name of the object that brings bad luck if broken?",
-      "options": [
         "Option 1",
         "Option 3",
-        "A mirror",
-        "Option 2"
+        "Christmas Tree Farm"
       ],
-      "correct_answer": "A mirror",
-      "context": "ry and lime Trivia Question: What object is said to bring bad luck if it is broken? Answer: A mirror Trivia Question: Which country did bagels originate from? Answer: Poland Trivia Question: What is the name for the group of men who elect a Pope? Answer: College of Cardinals Trivia Question: An Apgar score is given to what? Answer: Health of newborns Trivia Question: The Candlestick, Lead Pipe, Knife, Revolver, Rope, and what else are the six weapons in a standard game of Clue? Answer: Wrench Trivia Questio"
+      "correct_answer": "Christmas Tree Farm",
+      "context": "\u201d? Answer: Matt Groening Trivia Question: What is the most populous city in Canada? Answer: Toronto Trivia Question: Taylor Swift grew up on what type of farm? Answer: Christmas Tree Farm Trivia Question: Which Doors song is about Jim Morrison\u2019s relationship with Pamela Courson? Answer: Queen Of The Highway Trivia Question: Which President of South Africa ordered Nelson Mandela\u2019s release from pris - on? Answer: De Klerk Trivia Question: Which 2008 comedy had the tagline \u201cPut this in your pipe and smoke it\u201d?"
+    },
+    {
+      "question": "Who played Cher Horowitz in \"Clueless\"?",
+      "options": [
+        "Zac Efron",
+        "Zooey Deschanel",
+        "Alicia Silverstone",
+        "Joseph Gordon Levitt"
+      ],
+      "correct_answer": "Alicia Silverstone",
+      "context": "movie? Answer: Restricted Trivia Question: Who played Cher Horowitz in the movie \u201cClueless\u201d? Answer: Alicia Silverstone Trivia Question: Which artist painted, \u201cGuernica\u201d? Answer: Pablo Picasso Trivia Question: What country produced the most strawberries in 2016? Answer: China Trivia Question: The traditional Wimbledon colors are green and what? Answer: Purple Trivia Question: On the television show \u201cHow I Met Y our Mother\u201d , what is Lily\u2019s occupation? Answer: Kindergarten Teacher Trivia Question: Which art"
     }
   ]
 }

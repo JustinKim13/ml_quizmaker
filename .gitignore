@@ -1,3 +1,8 @@
+# Python virtual environment
 server/env/
+
+# Sense2Vec large file
 server/s2v_reddit_2015_md.tar.gz
-server/s2v_old/vectors
+
+# Sense2Vec unpacked model files (entire dir)
+server/ml_models/models/s2v_old/
