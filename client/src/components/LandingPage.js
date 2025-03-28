@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import '../styles/LandingPage.css';
 
-const LandingPage = ({ onStart }) => {
-    const [username, setUsername] = useState(""); // username state
+const LandingPage = ({ onStart, initialUsername = "" }) => {
+    const [username, setUsername] = useState(initialUsername); // Use initialUsername as default
     const [error, setError] = useState(""); // error state
 
     const handleButtonClick = (action) => {

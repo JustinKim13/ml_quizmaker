@@ -67,7 +67,7 @@ function App() {
             {(() => {
                 switch (currentPage) {
                     case 'landing':
-                        return <LandingPage onStart={handleStart} />;
+                        return <LandingPage onStart={handleStart} initialUsername={username} />;
                         
                     case 'upload':
                         return (
@@ -110,7 +110,7 @@ function App() {
                         />;
                         
                     default:
-                        return <LandingPage onStart={handleStart} />;
+                        return <LandingPage onStart={handleStart} initialUsername={username} />;
                 }
             })()}
         </div>
