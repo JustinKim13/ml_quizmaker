@@ -1,37 +1,37 @@
 {
   "questions": [
     {
-      "question": "Which team holds the record for the most Super Bowl appearances?",
+      "question": "What object of Dwight\u2019s did Jim put in Jell-O on the TV show \u201cThe Office\u201d",
       "options": [
-        "Green Bay Packers",
-        "New England Patriots",
-        "Super Bowl Xlix",
-        "Baltimore Ravens"
+        "Box Cutter",
+        "Tape Dispenser",
+        "Letter Opener",
+        "Stapler"
       ],
-      "correct_answer": "New England Patriots",
-      "context": "which ship did Charles Darwin make his famous expedition, which led to his theory of evolution? Answer: HMS Beagle Trivia Question: In which film did father and son actors Will and Jaden Smith first appear together? Answer: The Pursuit of Happiness Trivia Question: Which NFL team holds the record for the most Super Bowl appearances? Answer: New England Patriots Trivia Question: In which city is Jim Morrison buried? Answer: Paris Trivia Question: Which actress keeps her Oscar in her bathroom so guests can h"
+      "correct_answer": "Stapler",
+      "context": "r first Oscar for \u201cKramer vs. Kramer\u201d? Answer: Meryl Streep **Trivia Question: What object of Dwight\u2019s did Jim put in Jell-O on the TV show \u201cThe Office\u201d?**? **Answer: Stapler** Trivia Question: Who voices Morty in the series \u201cRick and Morty\u201d? Answer: Justin Rolland Trivia Question: \u201cY ou\u2019re gonna need a bigger boat\u201d originated in what movie? Answer: Jaws Trivia Question: What does the \u201cR\u201d stand for on the rating of a movie? Answer: Restricted Trivia Question: Who played Cher Horowitz in the movie \u201cClueless\u201d? Answer:"
     },
     {
-      "question": "What is the first element on the Periodic Table?",
+      "question": "Ludwig Van Beethoven was born in 1770 in which city",
       "options": [
-        "Covalently",
-        "Hydrogen",
-        "Intermolecular Forces",
-        "Micelles"
+        "London",
+        "Berlin",
+        "Frankfurt",
+        "Amsterdam"
       ],
-      "correct_answer": "Hydrogen",
-      "context": "me Ishmael. \u201d? Answer: Moby Dick Trivia Question: What is the first element on the Periodic Table? Answer: Hydrogen Trivia Question: What object did Ben Franklin attach to the end of a kite string to prove that lightning is electricity? Answer: A metal key Trivia Question: What does a Scoville unit measure? Answer: Spiciness Trivia Question: What US president put a Twinkie in the country\u2019s millennium time capsule? Answer: Bill Clinton Trivia Question: What is an ice hockey puck made from? Answer: Rubber Tri"
+      "correct_answer": "Berlin",
+      "context": "Answer: Mona Lisa **Trivia Question: Ludwig Van Beethoven was born in 1770 in which city?**? **Answer: Berlin** Trivia Question: Water as a pH level of around? Answer: 7 Trivia Question: What\u2019s the most expensive home in the world? Answer:Buckingham Palace Trivia Question: What did the Crocodile swallow in Peter Pan? Answer: An alarm clock Trivia Question: What\u2019s the hardest rock? Answer: A diamond Trivia Question: What is the national dish of Spain? Answer: Paella Trivia Question: Which horoscope sign has a crab?"
     },
     {
-      "question": "What type of farm did Taylor Swift grow up on?",
+      "question": "Which female singer discovered a \u2018Genie in a Bottle\u2019 in 1999",
       "options": [
-        "Option 3",
-        "Christmas Tree Farm",
-        "Option 2",
-        "Option 1"
+        "Mariah Carey",
+        "Britney Spears",
+        "Christina Aguilera",
+        "Madonna"
       ],
-      "correct_answer": "Christmas Tree Farm",
-      "context": "\u201d? Answer: Matt Groening Trivia Question: What is the most populous city in Canada? Answer: Toronto Trivia Question: Taylor Swift grew up on what type of farm? Answer: Christmas Tree Farm Trivia Question: Which Doors song is about Jim Morrison\u2019s relationship with Pamela Courson? Answer: Queen Of The Highway Trivia Question: Which President of South Africa ordered Nelson Mandela\u2019s release from pris - on? Answer: De Klerk Trivia Question: Which 2008 comedy had the tagline \u201cPut this in your pipe and smoke it\u201d?"
+      "correct_answer": "Christina Aguilera",
+      "context": "wer: Plants Trivia Question: Tanks were used in battle for the first time in which conflict? Answer: World War 1 Trivia Question: Squab is a name given to the young of which bird? Answer: Pigeon **Trivia Question: Which female singer discovered a \u2018Genie in a Bottle\u2019 in 1999?**? **Answer: Christina Aguilera** Trivia Question: Complete the title of a 1979 number one by Blondie \u2013 \u2018Heart of\u2026 \u2019 Answer: Glass Trivia Question: Which Italian fascist leader was known as \u2018Il Duce\u2019? Answer: Mussolini Trivia Question: If a male"
     }
   ]
 }

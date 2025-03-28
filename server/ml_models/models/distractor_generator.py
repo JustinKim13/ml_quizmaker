@@ -5,6 +5,7 @@ from typing import List, Dict
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import random
+import re
 
 # Load models
 s2v_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "s2v_old"))
@@ -50,79 +51,133 @@ def mmr(doc_embedding: np.ndarray,
 
     return [words[idx] for idx in keywords_idx]
 
+def clean_word(word: str) -> str:
+    """Clean word by removing URLs and other artifacts."""
+    # Remove URL portions
+    word = re.sub(r'\]\(http[^\)]+\)', '', word)
+    # Remove any remaining brackets
+    word = re.sub(r'[\[\]]', '', word)
+    # Remove any trailing punctuation
+    word = re.sub(r'[^\w\s-]$', '', word)
+    return word.strip()
+
 def clean_answer_for_lookup(answer: str) -> str:
-    words = answer.strip().split()
-    if words[0].lower() in {"a", "an", "the"}:
+    """Clean the answer for vocabulary lookup while preserving the original format."""
+    words = answer.strip().lower().split()
+    if words[0] in {"a", "an", "the"}:
         words = words[1:]
-    return "_".join(words).lower()
+    return "_".join(words)
 
 def create_multiple_choice(question: str, correct_answer: str, context: str) -> Dict:
     print(f"\n[DEBUG] Generating MCQ for question: {question}")
-    print(f"[DEBUG] Correct answer: {correct_answer}")
-
-    lookup_word = clean_answer_for_lookup(correct_answer)
-    print(f"[DEBUG] Sense2Vec lookup word: {lookup_word}")
+    
+    # Add question mark if missing
+    if not question.strip().endswith('?'):
+        question = question.strip() + '?'
+    
+    # Clean answer first - remove Trivia and other artifacts
+    correct_answer = correct_answer.split('Trivia')[0].strip()
+    correct_answer = re.sub(r'\s*Question.*$', '', correct_answer).strip()
+    # Convert correct answer to Title Case
+    correct_answer = correct_answer.title()
+    print(f"[DEBUG] Cleaned correct answer: {correct_answer}")
 
     try:
-        # Try to get best sense directly
+        lookup_variations = [
+            clean_answer_for_lookup(correct_answer),
+            correct_answer.lower().replace(" ", "_"),
+            correct_answer.lower(),
+        ]
+        
         sense = None
-        if lookup_word in s2v:
-            sense = s2v.get_best_sense(lookup_word)
-            print(f"[DEBUG] Best sense for word: {sense}")
-        else:
-            print(f"[WARNING] Word '{lookup_word}' not found in S2V. Searching for closest match...")
-            matches = [key for key in s2v.keys() if lookup_word in key.lower()]
-            if matches:
-                sense = matches[0]
-                print(f"[DEBUG] Fallback sense used: {sense}")
+        for lookup_word in lookup_variations:
+            print(f"[DEBUG] Trying lookup word: {lookup_word}")
+            if lookup_word in s2v:
+                sense = s2v.get_best_sense(lookup_word)
+                print(f"[DEBUG] Found direct match: {sense}")
+                break
             else:
-                print(f"[ERROR] No fallback match found.")
-                raise ValueError("Word not in Sense2Vec vocabulary.")
+                # Find all similar words in vocabulary
+                similar_words = [word for word in s2v.keys() if lookup_word in word.lower()]
+                if similar_words:
+                    # Sort by simplicity and relevance
+                    similar_words.sort(key=lambda x: (
+                        len(x.split('_')),
+                        0 if x.split('|')[1] in ['NOUN', 'PERSON', 'GPE'] else 1,
+                        1 if any(term in x.lower() for term in ['movie', 'show', 'express', 'film']) else 0,
+                        0 if x.split('|')[0].lower() == lookup_word else 1
+                    ))
+                    
+                    sense = similar_words[0]
+                    print(f"[DEBUG] Found best similar word in vocab: {sense}")
+                    break
+        
+        if sense:
+            most_similar = s2v.most_similar(sense, n=30)
+            distractors = []
+            
+            # Get the semantic type of the correct answer (e.g., color, state, person)
+            answer_type = sense.split('|')[1]
+            
+            for each_word in most_similar:
+                word = clean_word(each_word[0].split("|")[0].replace("_", " "))
+                word_type = each_word[0].split("|")[1]
+                similarity_score = each_word[1]
+                
+                # Convert distractor to Title Case
+                word = word.title()
+                
+                print(f"[DEBUG] Considering distractor: {word} (score: {similarity_score}, type: {word_type})")
+                
+                # Skip if:
+                if (word.lower() == correct_answer.lower() or  # Same as correct answer
+                    word.lower() in correct_answer.lower() or  # Subset of correct answer
+                    correct_answer.lower() in word.lower() or  # Superset of correct answer
+                    any(word.lower() == d.lower() for d in distractors) or  # Duplicate
+                    any(word.lower() in d.lower() or d.lower() in word.lower() for d in distractors) or  # Similar to existing
+                    word_type != answer_type or  # Different semantic type
+                    # Check for abbreviations/variants
+                    any(are_variants(word, d) for d in [correct_answer] + distractors)):
+                    continue
+                
+                distractors.append(word)
+            
+            if len(distractors) >= 3:
+                options = [correct_answer] + distractors[:3]
+                random.shuffle(options)
+                return {
+                    "question": question,
+                    "options": options,
+                    "answer": correct_answer
+                }
 
-        most_similar = s2v.most_similar(sense, n=20)
-        print(f"[DEBUG] Retrieved {len(most_similar)} similar words.")
-
-        distractors = []
-        for each_word in most_similar:
-            append_word = each_word[0].split("|")[0].replace("_", " ")
-            if append_word.lower() != correct_answer.lower() and append_word not in distractors:
-                distractors.append(append_word)
-
-        print(f"[DEBUG] Found {len(distractors)} distractors: {distractors}")
-
-        if not distractors:
-            print("[WARNING] No valid distractors found. Falling back to default options.")
-            return {
-                "question": question,
-                "options": [correct_answer] + [f"Option {i+1}" for i in range(3)],
-                "answer": correct_answer
-            }
-
-        all_options = [correct_answer] + distractors
-        print(f"[DEBUG] All options before encoding: {all_options}")
-        answer_embedding = model.encode([correct_answer], convert_to_numpy=True).reshape(1, -1)
-        distractor_embeddings = model.encode(all_options, convert_to_numpy=True)
-        print(f"[DEBUG] Embedding shapes - answer: {answer_embedding.shape}, distractors: {distractor_embeddings.shape}")
-
-        final_options = mmr(answer_embedding, distractor_embeddings, all_options, top_n=4)
-        options = [opt.title() for opt in final_options]
-        print(f"[DEBUG] Final MMR-selected options: {options}")
-        random.shuffle(options)
-        print(f"[DEBUG] Options after shuffling: {options}")
-
-        return {
-            "question": question,
-            "options": options,
-            "answer": correct_answer
-        }
+        raise ValueError("No valid distractors found")
 
     except Exception as e:
-        print(f"[ERROR] Exception in creating question: {e}")
+        print(f"[ERROR] Exception in creating question: {str(e)}")
         options = [correct_answer] + [f"Option {i+1}" for i in range(3)]
         random.shuffle(options)
-
         return {
             "question": question,
             "options": options,
             "answer": correct_answer
         }
+
+def are_variants(word1: str, word2: str) -> bool:
+    """Check if two words are variants of each other (abbreviations, state names, etc.)"""
+    w1, w2 = word1.lower(), word2.lower()
+    
+    # State abbreviations
+    state_abbrev = {
+        'new jersey': 'nj',
+        'new york': 'ny',
+        # Add more state abbreviations as needed
+    }
+    
+    # Check if either word is an abbreviation of the other
+    if w1 in state_abbrev and state_abbrev[w1] == w2:
+        return True
+    if w2 in state_abbrev and state_abbrev[w2] == w1:
+        return True
+    
+    return False
