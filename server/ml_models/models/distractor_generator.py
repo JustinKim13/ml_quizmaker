@@ -6,6 +6,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import random
 import re
+import difflib
 
 # Load models
 s2v_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "s2v_old"))
@@ -68,6 +69,109 @@ def clean_answer_for_lookup(answer: str) -> str:
         words = words[1:]
     return "_".join(words)
 
+def proper_title_case(text: str) -> str:
+    """
+    Custom title case function that handles special cases like apostrophes and abbreviations.
+    """
+    # Special cases that should remain uppercase
+    special_cases = {'U.S.', 'U.K.', 'E.T.', 'A.I.', 'U.N.', 'NASA', 'FBI', 'CIA'}
+    
+    # Words that should remain lowercase unless at start
+    lowercase_words = {'a', 'an', 'the', 'and', 'but', 'or', 'for', 'nor', 'in', 'to', 'at', 'by', 'of'}
+    
+    # Split on spaces while preserving whitespace
+    words = text.split(' ')
+    result = []
+    
+    for i, word in enumerate(words):
+        # Skip empty strings
+        if not word:
+            result.append(word)
+            continue
+            
+        # Check for special cases
+        if word.upper() in special_cases:
+            result.append(word.upper())
+            continue
+            
+        # Handle apostrophes
+        if "'" in word:
+            parts = word.split("'")
+            titled_parts = [part.capitalize() for part in parts]
+            result.append("'".join(titled_parts))
+            continue
+            
+        # Regular title case rules
+        if i == 0 or word.lower() not in lowercase_words:
+            result.append(word.capitalize())
+        else:
+            result.append(word.lower())
+    
+    return ' '.join(result)
+
+def normalize_text(text: str) -> str:
+    """
+    Normalize text for comparison by removing punctuation and standardizing spacing.
+    """
+    # Remove line breaks
+    text = text.replace('\n', ' ')
+    # Standardize spaces
+    text = ' '.join(text.split())
+    # Convert to lowercase
+    text = text.lower()
+    # Remove punctuation except apostrophes
+    text = re.sub(r'[^\w\s\']', '', text)
+    # Standardize abbreviations
+    text = text.replace('u.s.', 'us')
+    text = text.replace('u.k.', 'uk')
+    return text
+
+def are_similar_answers(text1: str, text2: str) -> bool:
+    """
+    Check if two answers are similar or variants of each other.
+    """
+    t1 = normalize_text(text1)
+    t2 = normalize_text(text2)
+    
+    # Direct match after normalization
+    if t1 == t2:
+        return True
+        
+    # Check for abbreviation variants
+    abbrev_dict = {
+        'united states': 'us',
+        'united kingdom': 'uk',
+        'national aeronautics and space administration': 'nasa',
+        'federal bureau of investigation': 'fbi',
+    }
+    
+    # Check if one is abbreviation of other
+    for full, abbrev in abbrev_dict.items():
+        if (t1 == full and t2 == abbrev) or (t2 == full and t1 == abbrev):
+            return True
+    
+    # Check for high similarity using difflib
+    similarity = difflib.SequenceMatcher(None, t1, t2).ratio()
+    return similarity > 0.8
+
+def is_answer_type_match(question: str, answer: str) -> bool:
+    """Check if the answer type matches the question type."""
+    question_lower = question.lower()
+    answer_lower = answer.lower()
+    
+    # Check for question-answer type consistency
+    if "what country" in question_lower:
+        return not any(word in answer_lower for word in ["movie", "food", "drink", "year"])
+    elif "what continent" in question_lower or "which continent" in question_lower:
+        continents = {"asia", "africa", "europe", "north america", "south america", "australia", "antarctica"}
+        return answer_lower in continents
+    elif "what is the main ingredient" in question_lower:
+        return not any(word in answer_lower for word in ["movie", "country", "year", "person"])
+    elif "what movie" in question_lower:
+        return not any(word in answer_lower for word in ["country", "food", "ingredient"])
+    
+    return True
+
 def create_multiple_choice(question: str, correct_answer: str, context: str) -> Dict:
     print(f"\n[DEBUG] Generating MCQ for question: {question}")
     
@@ -75,11 +179,11 @@ def create_multiple_choice(question: str, correct_answer: str, context: str) -> 
     if not question.strip().endswith('?'):
         question = question.strip() + '?'
     
-    # Clean answer first - remove Trivia and other artifacts
+    # Clean answer and apply proper title case
     correct_answer = correct_answer.split('Trivia')[0].strip()
     correct_answer = re.sub(r'\s*Question.*$', '', correct_answer).strip()
-    # Convert correct answer to Title Case
-    correct_answer = correct_answer.title()
+    original_answer = correct_answer  # Store original for case-insensitive comparison
+    correct_answer = proper_title_case(correct_answer)
     print(f"[DEBUG] Cleaned correct answer: {correct_answer}")
 
     try:
@@ -103,7 +207,7 @@ def create_multiple_choice(question: str, correct_answer: str, context: str) -> 
                     # Sort by simplicity and relevance
                     similar_words.sort(key=lambda x: (
                         len(x.split('_')),
-                        0 if x.split('|')[1] in ['NOUN', 'PERSON', 'GPE'] else 1,
+                        0 if x.split('|')[1] in ['NOUN', 'PERSON', 'GPE', 'LOC'] else 1,
                         1 if any(term in x.lower() for term in ['movie', 'show', 'express', 'film']) else 0,
                         0 if x.split('|')[0].lower() == lookup_word else 1
                     ))
@@ -116,31 +220,47 @@ def create_multiple_choice(question: str, correct_answer: str, context: str) -> 
             most_similar = s2v.most_similar(sense, n=30)
             distractors = []
             
-            # Get the semantic type of the correct answer (e.g., color, state, person)
+            # Get the semantic type of the correct answer
             answer_type = sense.split('|')[1]
+            
+            # Use MMR to get diverse but relevant distractors
+            word_embeddings = []
+            words = []
             
             for each_word in most_similar:
                 word = clean_word(each_word[0].split("|")[0].replace("_", " "))
                 word_type = each_word[0].split("|")[1]
-                similarity_score = each_word[1]
                 
-                # Convert distractor to Title Case
-                word = word.title()
+                # Apply proper title case
+                word = proper_title_case(word)
                 
-                print(f"[DEBUG] Considering distractor: {word} (score: {similarity_score}, type: {word_type})")
-                
-                # Skip if:
-                if (word.lower() == correct_answer.lower() or  # Same as correct answer
-                    word.lower() in correct_answer.lower() or  # Subset of correct answer
-                    correct_answer.lower() in word.lower() or  # Superset of correct answer
-                    any(word.lower() == d.lower() for d in distractors) or  # Duplicate
-                    any(word.lower() in d.lower() or d.lower() in word.lower() for d in distractors) or  # Similar to existing
+                # Basic filtering before embedding
+                if (are_similar_answers(word, correct_answer) or  # Similar to correct answer
+                    any(are_similar_answers(word, d) for d in distractors) or  # Similar to existing
                     word_type != answer_type or  # Different semantic type
-                    # Check for abbreviations/variants
-                    any(are_variants(word, d) for d in [correct_answer] + distractors)):
+                    not is_answer_type_match(question, word)):  # Doesn't match question type
                     continue
                 
-                distractors.append(word)
+                # Get word embedding
+                try:
+                    word_embedding = model.encode([word])[0]
+                    word_embeddings.append(word_embedding)
+                    words.append(word)
+                except Exception as e:
+                    print(f"[DEBUG] Error encoding word {word}: {str(e)}")
+                    continue
+                
+                if len(words) >= 10:  # Get enough candidates for MMR
+                    break
+            
+            if words:
+                # Convert to numpy arrays
+                word_embeddings = np.array(word_embeddings)
+                doc_embedding = model.encode([correct_answer])[0].reshape(1, -1)
+                
+                # Use MMR to select diverse distractors
+                selected_distractors = mmr(doc_embedding, word_embeddings, words, top_n=3, diversity=0.9)
+                distractors.extend(selected_distractors)
             
             if len(distractors) >= 3:
                 options = [correct_answer] + distractors[:3]
@@ -148,20 +268,16 @@ def create_multiple_choice(question: str, correct_answer: str, context: str) -> 
                 return {
                     "question": question,
                     "options": options,
-                    "answer": correct_answer
+                    "answer": correct_answer,
+                    "case_insensitive_answer": original_answer,
+                    "correct_answer": original_answer
                 }
 
         raise ValueError("No valid distractors found")
 
     except Exception as e:
         print(f"[ERROR] Exception in creating question: {str(e)}")
-        options = [correct_answer] + [f"Option {i+1}" for i in range(3)]
-        random.shuffle(options)
-        return {
-            "question": question,
-            "options": options,
-            "answer": correct_answer
-        }
+        return None
 
 def are_variants(word1: str, word2: str) -> bool:
     """Check if two words are variants of each other (abbreviations, state names, etc.)"""
@@ -181,3 +297,9 @@ def are_variants(word1: str, word2: str) -> bool:
         return True
     
     return False
+
+def check_answer(user_answer: str, correct_answer: str) -> bool:
+    """Case-insensitive answer checking."""
+    if not user_answer or not correct_answer:
+        return False
+    return user_answer.lower().strip() == correct_answer.lower().strip()

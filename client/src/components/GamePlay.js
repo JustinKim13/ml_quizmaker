@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import '../styles/GamePlay.css';
 
+// how much time we give players to answer each question
+const timePerQuestion = 30
+
 function GamePlay({ questions, onFinish, gameData }) {
     const [currentQuestion, setCurrentQuestion] = useState(0); // state for our current questions and answers to ask
     const [score, setScore] = useState(0); // state to manage users' scores
@@ -9,7 +12,7 @@ function GamePlay({ questions, onFinish, gameData }) {
     const [ws, setWs] = useState(null);
     const [playerScores, setPlayerScores] = useState({});
     const selectedAnswerRef = useRef(null);
-    const [timeLeft, setTimeLeft] = useState(10); 
+    const [timeLeft, setTimeLeft] = useState(timePerQuestion);  // time per question
     const [uiSelectedAnswer, setUiSelectedAnswer] = useState(null); // allws us to immediately update the ui of selected answer instead of waiting to re-render state
     const [playerCount, setPlayerCount] = useState(0) ;
     const [playersAnswered, setPlayersAnswered] = useState(0);
@@ -277,10 +280,12 @@ function GamePlay({ questions, onFinish, gameData }) {
                             </div>
                         ))}
                     </div>
-                    <div className="question-context">
-                        <h3>Context:</h3>
-                        <p>{currentContext}</p> {/* Display context here */}
-                    </div>
+                    <div 
+                        className="question-context"
+                        dangerouslySetInnerHTML={{ 
+                            __html: currentContext 
+                        }}
+                    />
                     {gameData.isHost && (
                         <button onClick={nextQuestion} className="next-button">
                             Next

@@ -9,9 +9,11 @@ from typing import Dict, List
 import gc
 import re
 import difflib
+import argparse
 
-# Global model cache
+# Global variables
 MODEL_CACHE = {}
+NUM_QUESTIONS = 5  # Set your desired number of questions here
 
 def get_model(model_name: str):
     """Cache and return models to prevent reloading."""
@@ -129,12 +131,12 @@ def extract_best_answer(question: str, context: str, qa_pipeline, max_context_le
             answer_start = context.find(f"Answer: {answer}") + len("Answer: ")
             answer_end = answer_start + len(answer)
             
-            # Create highlighted context
+            # Update the highlighting format
             highlighted_context = (
                 context[:question_start] +
-                "**Trivia Question: " + orig_question + "?**" +
+                '<span class="highlight-question">Trivia Question: ' + orig_question + '?</span>' +
                 context[question_end:answer_start] +
-                "**" + answer + "**" +
+                '<span class="highlight-answer">' + answer + '</span>' +
                 context[answer_end:]
             )
             
@@ -166,56 +168,94 @@ def extract_best_answer(question: str, context: str, qa_pipeline, max_context_le
         print(f"[ERROR] Answer extraction failed: {str(e)}")
         return f"Error extracting answer: {str(e)}", 0.0, context
 
-def load_and_tokenize_text(input_file: str, max_chunk_length: int = 512, overlap: int = 100) -> List[str]:
-    """Load and chunk text efficiently."""
-    with open(input_file, "r", encoding="utf-8") as file:
-        text = " ".join(file.read().split())
-    return [text[i:i + max_chunk_length] for i in range(0, len(text), max_chunk_length - overlap)]
-
-@torch.no_grad()
 def process_chunk(chunk: str, models: Dict) -> Dict:
     """Process a single chunk to generate a QA pair with improved filtering."""
     context = clean_context(chunk)
     
-    # Extract existing Q&A pairs from the context
-    qa_pairs = re.findall(r"Trivia Question: (.*?)\? Answer: (.*?)(?=Trivia Question:|$)", context)
+    # More precise regex pattern that ensures proper Q&A boundaries
+    qa_pattern = r"Trivia Question:\s*((?:(?!Trivia Question:|Answer:).)*?)\?\s*Answer:\s*((?:(?!Trivia Question:).)*?)(?=Trivia Question:|$)"
+    qa_pairs = re.findall(qa_pattern, context, re.DOTALL)
     
     if not qa_pairs:
         return None
     
-    # Select a random Q&A pair
-    question, answer = random.choice(qa_pairs)
-    question = question.strip()
-    answer = answer.strip()
+    # Select a random Q&A pair and validate
+    for _ in range(len(qa_pairs)):  # Try each pair until we find a valid one
+        question, answer = random.choice(qa_pairs)
+        question = question.strip()
+        answer = answer.strip()
+        
+        # Validation checks
+        if (len(answer.split()) >= 1 and  # Answer must be at least one complete word
+            not answer.endswith('.') and   # Answer shouldn't end with period
+            "?" not in answer and          # Answer shouldn't contain another question
+            "Answer:" not in answer and    # Answer shouldn't contain another answer
+            len(answer) >= 3):             # Answer must be at least 3 chars
+            
+            # Ensure question ends with question mark
+            if not question.endswith('?'):
+                question = question + '?'
+                
+            print(f"Selected Q&A pair: {question} -> {answer}")
+            
+            try:
+                mc_question = create_multiple_choice(question, answer, context)
+                
+                # Find and highlight the question and answer in the context
+                q_start = context.find(f"Trivia Question: {question.rstrip('?')}")
+                q_end = q_start + len(f"Trivia Question: {question}")
+                a_start = context.find(f"Answer: {answer}")
+                a_end = a_start + len(f"Answer: {answer}")
+                
+                # Update the highlighting format
+                highlighted_context = (
+                    context[:q_start] +
+                    '<span class="highlight-question">Trivia Question: ' + question + '</span>' +
+                    context[q_end:a_start] +
+                    '<span class="highlight-answer">Answer: ' + answer + '</span>' +
+                    context[a_end:]
+                )
+                
+                return {
+                    "question": question,
+                    "options": mc_question['options'],
+                    "correct_answer": answer,
+                    "context": highlighted_context
+                }
+            except Exception as e:
+                print(f"Error generating distractors: {str(e)}")
+                continue
     
-    print(f"Selected Q&A pair: {question} -> {answer}")
+    return None
+
+def load_and_tokenize_text(input_file: str, max_chunk_length: int = 512, overlap: int = 100) -> List[str]:
+    """Load and chunk text efficiently while preserving complete Q&A pairs."""
+    with open(input_file, "r", encoding="utf-8") as file:
+        text = file.read()
     
-    try:
-        mc_question = create_multiple_choice(question, answer, context)
-        
-        # Find and highlight the question and answer in the context
-        q_start = context.find(f"Trivia Question: {question}")
-        q_end = q_start + len(f"Trivia Question: {question}")
-        a_start = context.find(f"Answer: {answer}")
-        a_end = a_start + len(f"Answer: {answer}")
-        
-        highlighted_context = (
-            context[:q_start] +
-            "**Trivia Question: " + question + "?**" +
-            context[q_end:a_start] +
-            "**Answer: " + answer + "**" +
-            context[a_end:]
-        )
-        
-        return {
-            "question": question,
-            "options": mc_question['options'],
-            "correct_answer": answer,
-            "context": highlighted_context
-        }
-    except Exception as e:
-        print(f"Error generating distractors: {str(e)}")
-        return None
+    # Split text into Q&A sections
+    qa_sections = re.split(r'(?=Trivia Question:)', text)
+    
+    chunks = []
+    current_chunk = ""
+    
+    for section in qa_sections:
+        if not section.strip():
+            continue
+            
+        # If adding this section would exceed max length, save current chunk and start new one
+        if len(current_chunk) + len(section) > max_chunk_length:
+            if current_chunk:
+                chunks.append(current_chunk.strip())
+            current_chunk = section
+        else:
+            current_chunk += section
+    
+    # Add the last chunk if it exists
+    if current_chunk:
+        chunks.append(current_chunk.strip())
+    
+    return chunks
 
 def is_answer_type_match(question: str, answer: str) -> bool:
     """Check if the answer type matches the question type."""
@@ -233,6 +273,10 @@ def is_answer_type_match(question: str, answer: str) -> bool:
     return True
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--num_questions', type=int, default=10)
+    args = parser.parse_args()
+    
     paths = {
         'input': "ml_models/outputs/combined_output.txt",
         'chunks': "ml_models/data_preprocessing/tokenized_chunks.json",
@@ -270,14 +314,14 @@ def main():
         random.shuffle(chunks)
         
         for chunk in chunks:
-            if len(qa_pairs) >= 3:
+            if len(qa_pairs) >= args.num_questions:  # Use passed argument
                 break
                 
             print(f"\nProcessing chunk: {chunk[:100]}...")
             qa_pair = process_chunk(chunk, models)
             if qa_pair:
                 qa_pairs.append(qa_pair)
-                print(f"\nCreated multiple choice question {len(qa_pairs)} of 3:")
+                print(f"\nCreated multiple choice question {len(qa_pairs)} of {args.num_questions}:")
                 print(json.dumps(qa_pair, indent=2))
 
         # Save questions with context to file

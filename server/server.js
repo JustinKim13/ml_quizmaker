@@ -67,6 +67,8 @@ app.post("/api/upload", async (req, res) => {
             const gameCode = Math.random().toString(36).substr(2, 6).toUpperCase();
             const username = req.body.username; // get username from request body
             const isPrivate = req.body.isPrivate === 'true' || req.body.isPrivate === true; // Ensure isPrivate is a boolean
+            const timePerQuestion = parseInt(req.body.timePerQuestion) || 30;
+            const numQuestions = parseInt(req.body.numQuestions) || 10;
 
             // initialize game data with host player
             activeGames.set(gameCode, {
@@ -77,7 +79,9 @@ app.post("/api/upload", async (req, res) => {
                 questions: [],
                 currentQuestion: 0,
                 timer: null,
-                timeLeft: 10,
+                timeLeft: timePerQuestion,
+                timePerQuestion: timePerQuestion,
+                numQuestions: numQuestions
             });
 
             // Clear combined_output.txt at the start of the upload process
@@ -427,7 +431,7 @@ function startGameTimer(gameCode) {
         clearInterval(game.timer); // Clear any existing timer
     }
 
-    game.timeLeft = 10; // Initial time of 10 seconds
+    game.timeLeft = game.timePerQuestion; // Use stored timePerQuestion
 
     // Start the game timer
     game.timer = setInterval(() => {
@@ -550,7 +554,8 @@ app.post("/api/game/:gameCode/start", async (req, res) => {
 // Helper function to run question generation
 function runQuestionGeneration() {
     const questionScript = path.join(__dirname, 'ml_models/models/t5_model.py');
-    const questionProcess = spawn('python3', [questionScript]);
+    const game = Array.from(activeGames.values())[0]; // Get the current game
+    const questionProcess = spawn('python3', [questionScript, '--num_questions', game.numQuestions.toString()]);
     
     questionProcess.stdout.on('data', (data) => {
         console.log('Question Generation:', data.toString());

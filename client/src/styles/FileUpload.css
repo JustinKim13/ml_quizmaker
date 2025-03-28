@@ -8,6 +8,7 @@
     background: none;
     padding: 20px;
     gap: 30px;
+    overflow-y: auto;
 }
 
 .upload-card {
@@ -20,6 +21,7 @@
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
     backdrop-filter: blur(10px);
     animation: slideIn 0.5s ease-out;
+    overflow-y: auto;
 }
 
 .upload-card h2 {
@@ -37,7 +39,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 25px;
+    gap: 0px;
 }
 
 .input-group {
@@ -177,7 +179,7 @@
     display: flex;
     justify-content: center;
     position: relative;
-    margin-top: 10px;
+    margin-top: 0px;
 }
 
 .submit-button {
@@ -192,7 +194,7 @@
     cursor: pointer;
     transition: all 0.3s ease;
     font-weight: 600;
-    margin-top: 15px;
+    margin-top: 0;
 }
 
 .submit-button:hover {
@@ -294,22 +296,26 @@
 .private-game-checkbox {
     display: flex;
     align-items: center;
-    gap: 5px;
-    margin-top: 5px;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 5px;
 }
 
 .private-game-checkbox input[type="checkbox"] {
+    display: inline-block;
     width: 16px;
     height: 16px;
     cursor: pointer;
-    margin-top: 2px;
+    margin: 0;
+    vertical-align: middle;
 }
 
 .private-game-label {
+    display: inline-block;
     font-size: 1em;
     color: #2c3e50;
     font-weight: 600;
-    cursor: pointer;
+    margin: 0;
 }
 
 .url-input {
@@ -394,4 +400,156 @@
 
 .remove-file-button:hover {
     color: #ff3b3b; /* Slightly darker red on hover */
+}
+
+.game-settings {
+    margin: 15px 0;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.game-settings .input-group {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0px 0;
+}
+
+.game-settings label {
+    margin-right: 10px;
+    color: #fff;
+}
+
+.number-input {
+    width: 80px;
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.game-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 20px 0;
+}
+
+.control-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 250px;
+}
+
+.slider-container {
+    width: 200px;
+    margin: 10px 0;
+}
+
+.slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: #e0e0e0;
+    outline: none;
+    margin: 10px 0;
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #3498db;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #3498db;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.slider::-webkit-slider-thumb:hover {
+    background: #2980b9;
+    transform: scale(1.1);
+}
+
+.slider::-moz-range-thumb:hover {
+    background: #2980b9;
+    transform: scale(1.1);
+}
+
+.slider-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8em;
+    color: #666;
+    margin-top: 5px;
+}
+
+.control-label {
+    font-size: 0.9em;
+    color: #2c3e50;
+    font-weight: 600;
+    margin-bottom: 4px;
+    display: block;
+    text-align: center;
+}
+
+.settings-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    margin: 15px 0;
+    margin-bottom: 0px;
+}
+
+.advanced-settings-toggle {
+    background: none;
+    border: none;
+    color: #3498db;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 8px 16px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.advanced-settings-toggle:hover {
+    background: rgba(52, 152, 219, 0.1);
+    transform: translateY(-1px);
+}
+
+.advanced-settings {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: all 0.3s ease;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.advanced-settings.show {
+    max-height: 300px;
+    opacity: 1;
+    padding: 20px 0;
 }

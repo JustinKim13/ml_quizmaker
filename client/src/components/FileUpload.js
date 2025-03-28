@@ -7,6 +7,9 @@ const FileUpload = ({ setGameData, username, onBack }) => {
     const [videoUrl, setVideoUrl] = useState(""); // state for storing optional video URL
     const [error, setError] = useState(""); // state for storing errors that occur
     const [isPrivate, setIsPrivate] = useState(false)
+    const [timePerQuestion, setTimePerQuestion] = useState(30); // Default 30 seconds
+    const [numQuestions, setNumQuestions] = useState(10); // Default 10 questions
+    const [showAdvanced, setShowAdvanced] = useState(false);  // Add this with your other state variables
 
     const handleRemoveFile = (indexToRemove) => { // function to remove files from upload
         setFiles(prevFiles => Array.from(prevFiles).filter((_, index) => index !== indexToRemove)); // use setFiles to modify files state
@@ -26,6 +29,8 @@ const FileUpload = ({ setGameData, username, onBack }) => {
         formData.append("videoUrl", videoUrl); // append videoUrl 
         formData.append("username", username); // append username 
         formData.append("isPrivate", isPrivate)
+        formData.append("timePerQuestion", timePerQuestion)
+        formData.append("numQuestions", numQuestions)
 
         try { // after adding these, try to post them to upload endpoint
             const response = await fetch("http://localhost:5000/api/upload", { // await allows us to wait for the post request to complete before proceeding to next line
@@ -41,7 +46,9 @@ const FileUpload = ({ setGameData, username, onBack }) => {
             setGameData({ // state update functon
                 ...data, // spread operator: takes all properties of data object which retains existing properties
                 playerName: username, // playername set to username
-                isProcessing: true // set isProcessing state to true
+                isProcessing: true, // set isProcessing state to true
+                timePerQuestion,
+                numQuestions
             });
             
         } catch (err) { // if any error occurs, set our error state to it
@@ -121,17 +128,66 @@ const FileUpload = ({ setGameData, username, onBack }) => {
                         />
                     </div>
 
-                    <div className="private-game-checkbox">
-                        <label htmlFor="privateGameCheckbox" className="private-game-label">
+                    <div className="settings-section">
+                        <div className="control-item private-game-checkbox">
+                            <label htmlFor="privateGameCheckbox" className="private-game-label">
                             Private Game
-                        </label>
-                        <input
+                            </label>
+                            <input
                             type="checkbox"
                             checked={isPrivate}
                             onChange={() => setIsPrivate(!isPrivate)}
                             id="privateGameCheckbox"
-                        />
-                    </div>
+                            />
+                        </div>
+                        </div>
+
+                        
+
+                        <button 
+                        className="advanced-settings-toggle"
+                        onClick={() => setShowAdvanced(!showAdvanced)}
+                        >
+                        {showAdvanced ? '▼ Advanced Settings' : '▶ Advanced Settings'}
+                        </button>
+
+                        <div className={`advanced-settings ${showAdvanced ? 'show' : ''}`}>
+                        <div className="control-item">
+                            <label className="control-label">Time per Question: {timePerQuestion}s</label>
+                            <div className="slider-container">
+                            <input
+                                type="range"
+                                min="3"
+                                max="300"
+                                value={timePerQuestion}
+                                onChange={(e) => setTimePerQuestion(parseInt(e.target.value))}
+                                className="slider"
+                            />
+                            <div className="slider-labels">
+                                <span>3s</span>
+                                <span>5m</span>
+                            </div>
+                            </div>
+                        </div>
+                        <div className="control-item">
+                            <label className="control-label">Number of Questions: {numQuestions}</label>
+                            <div className="slider-container">
+                            <input
+                                type="range"
+                                min="1"
+                                max="20"
+                                value={numQuestions}
+                                onChange={(e) => setNumQuestions(parseInt(e.target.value))}
+                                className="slider"
+                            />
+                            <div className="slider-labels">
+                                <span>1</span>
+                                <span>20</span>
+                            </div>
+                            </div>
+                        </div>
+                        </div>
+
 
                     <div className="submit-wrapper">
                         <button className="submit-button" onClick={handleSubmit}>
