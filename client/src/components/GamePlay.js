@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import '../styles/GamePlay.css';
+import GameOver from './GameOver';
 
 // how much time we give players to answer each question
 const timePerQuestion = 30
@@ -297,27 +298,14 @@ function GamePlay({ questions, onFinish, gameData }) {
     }    
 
     if (gameCompleted) {
-        // Find the winner (highest score)
-        const sortedPlayers = Object.entries(playerScores)
-            .sort(([, a], [, b]) => b.score - a.score);
-        const winner = sortedPlayers[0]; // The first player in the sorted list is the winner
-    
         return (
-            <div className="winner-container">
-                <div className="winner-text">And the winner is...</div>
-                <div className="winner-name">{winner[0]}</div>
-                <div className="winner-score">with {winner[1].score} points!</div>
-                {gameData.isHost && (
-                    <button onClick={handlePlayAgain} className="play-again-button">
-                        Play Again
-                    </button>
-                )}
-                {!gameData.isHost && (
-                    <button onClick={handleLobby} className="play-again-button">
-                        Return to Lobby
-                    </button>
-                )}
-            </div>
+            <GameOver 
+                playerScores={playerScores}
+                questions={questions}
+                onPlayAgain={handlePlayAgain}
+                gameData={gameData}
+                handleLobby={handleLobby}
+            />
         );
     }    
 

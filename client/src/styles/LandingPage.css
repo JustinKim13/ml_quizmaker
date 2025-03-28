@@ -5,6 +5,7 @@
     justify-content: center;
     background: none;
     padding: 20px;
+    overflow:hidden;
 }
 
 .landing-card {

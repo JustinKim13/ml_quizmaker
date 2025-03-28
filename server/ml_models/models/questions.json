@@ -1,1 +1,15 @@
-{"questions":[]}
+{
+  "questions": [
+    {
+      "question": "What country won the very first FIFA World Cup in 1930?",
+      "options": [
+        "Uruguay",
+        "Colombia",
+        "Argentina",
+        "Honduras"
+      ],
+      "correct_answer": "Uruguay",
+      "context": "Trivia Question: Before the Beatles were formed, John Lennon, Paul McCartney and George \nHarrison were originally members of which group?\nAnswer: The Quarrymen\nTrivia Question: What is the name of the Earth\u2019s largest ocean?\nAnswer: The Pacific Ocean\nTrivia Question: When Michael Jordan played for the Chicago Bulls, how many NBA Champi -\nonships did he win?\nAnswer: Six\n<span class=\"highlight-question\">Trivia Question: What country won the very first FIFA World Cup in 1930?</span>\n<span class=\"highlight-answer\">Answer: Uruguay</span>"
+    }
+  ]
+}
