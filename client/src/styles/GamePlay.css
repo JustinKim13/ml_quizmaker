@@ -296,62 +296,56 @@
     z-index: 10;
 }
 
-.leaderboard-title {
-    font-size: 2rem;
-    text-align: center;
+.leaderboard-title, .context-title {
+    color: #2c3e50;
     margin-bottom: 20px;
-    color: black;
+    text-align: center;
 }
 
 .leaderboard {
     display: flex;
     flex-direction: column;
-    align-items: center;
     gap: 10px;
+    margin-bottom: 20px;
+    max-width: 600px;
+    margin: 0 auto 20px;
 }
 
 .leaderboard-item {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    width: 80%;
-    max-width: 400px;
-    padding: 10px 20px;
-    background-color: #2d2f34;
-    border-radius: 8px;
-    color: #fff;
-    font-size: 1.2rem;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    background-color: white;
+    padding: 15px 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease;
 }
 
-.leaderboard-item.first-place {
-    background-color: #ffc107; /* Highlight first place with gold */
-    color: white;
-    font-weight: bold;
+.leaderboard-item:hover {
+    transform: translateY(-2px);
 }
 
 .rank {
-    flex: 1;
-    text-align: left;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    background-color: #3498db;
+    color: white;
+    border-radius: 50%;
+    margin-right: 15px;
     font-weight: bold;
 }
 
 .player-name {
-    flex: 2;
-    text-align: center;
-    color: black;
-}
-
-.leaderboard .player-name {
-    flex: 2;
-    text-align: center;
-    color: white; /* Set font color to white only in the leaderboard */
+    flex: 1;
+    font-weight: 500;
 }
 
 .player-score {
-    flex: 1;
-    text-align: right;
     font-weight: bold;
+    color: #2c3e50;
 }
 
 .winner-container {
@@ -460,5 +454,38 @@
     padding: 2px 4px;
     border-radius: 3px;
     font-weight: 500;
+}
+
+.view-toggle {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.toggle-button {
+    padding: 10px 20px;
+    margin: 0 5px;
+    background: #f1f1f1;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.toggle-button.active {
+    background: #3498db;
+    color: white;
+}
+
+.question-context {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    max-height: 300px;
+    overflow-y: auto;
+    line-height: 1.6;
 }
 

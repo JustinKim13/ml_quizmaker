@@ -21,6 +21,7 @@ function GamePlay({ questions, onFinish, gameData }) {
     const playerTimesRef = useRef({});
     const [showLeaderboard, setShowLeaderboard] = useState(false); // State to toggle leaderboard view
     const [currentContext, setCurrentContext] = useState(""); // State for question context
+    const [showContext, setShowContext] = useState(false); // Move this to the top level
 
     useEffect(() => { // initialize our game websocket at localhost
         const websocket = new WebSocket('ws://localhost:5000');
@@ -262,31 +263,55 @@ function GamePlay({ questions, onFinish, gameData }) {
         const sortedPlayers = Object.entries(playerScores)
             .sort(([, a], [, b]) => b.score - a.score)
             .slice(0, 5); // Top 5 players
-    
+        
         return (
             <div className="game-container">
                 <div className="game-content">
-                    <h2 className="leaderboard-title">Leaderboard</h2>
-                    <div className="leaderboard">
-                        {sortedPlayers.map(([playerName, data], index) => (
-                            <div
-                                key={playerName}
-                                className={`leaderboard-item ${
-                                    index === 0 ? "first-place" : "" // Highlight first place
-                                }`}
-                            >
-                                <span className="rank">{index + 1}</span>
-                                <span className="player-name">{playerName}</span>
-                                <span className="player-score">{data.score} points</span>
-                            </div>
-                        ))}
+                    <div className="view-toggle">
+                        <button 
+                            className={`toggle-button ${!showContext ? 'active' : ''}`}
+                            onClick={() => setShowContext(false)}
+                        >
+                            Leaderboard
+                        </button>
+                        <button 
+                            className={`toggle-button ${showContext ? 'active' : ''}`}
+                            onClick={() => setShowContext(true)}
+                        >
+                            Context
+                        </button>
                     </div>
-                    <div 
-                        className="question-context"
-                        dangerouslySetInnerHTML={{ 
-                            __html: currentContext 
-                        }}
-                    />
+                    
+                    {!showContext ? (
+                        <>
+                            <h2 className="leaderboard-title">Leaderboard</h2>
+                            <div className="leaderboard">
+                                {sortedPlayers.map(([playerName, data], index) => (
+                                    <div
+                                        key={playerName}
+                                        className={`leaderboard-item ${
+                                            index === 0 ? "first-place" : "" // Highlight first place
+                                        }`}
+                                    >
+                                        <span className="rank">{index + 1}</span>
+                                        <span className="player-name">{playerName}</span>
+                                        <span className="player-score">{data.score} points</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <h2 className="context-title">Question Context</h2>
+                            <div 
+                                className="question-context"
+                                dangerouslySetInnerHTML={{ 
+                                    __html: currentContext 
+                                }}
+                            />
+                        </>
+                    )}
+                    
                     {gameData.isHost && (
                         <button onClick={nextQuestion} className="next-button">
                             Next
