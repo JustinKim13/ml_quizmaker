@@ -80,23 +80,59 @@ def extract_best_answer(question: str, context: str, qa_pipeline, max_context_le
         print(f"Error extracting answer: {str(e)}")
         return f"Error extracting answer: {str(e)}", 0.0
 
-def load_and_tokenize_text(input_file: str, max_chunk_length: int = 512, overlap: int = 100) -> List[str]:
-    """Load and chunk text efficiently for any text-based PDF."""
+def load_and_tokenize_text(input_file: str, min_paragraph_length: int = 200, max_paragraph_length: int = 1000) -> List[str]:
+    """Load and split text by paragraphs for more natural chunking."""
     try:
         with open(input_file, "r", encoding="utf-8") as file:
             text = file.read()
             
         print(f"Loaded text with {len(text)} characters")
         
-        # Force split into smaller chunks regardless of paragraph structure
-        chunks = []
-        for i in range(0, len(text), max_chunk_length // 2):
-            chunk = text[i:i + max_chunk_length]
-            if len(chunk.strip()) > 200:  # Only keep chunks with substantial content
-                chunks.append(chunk)
+        # Clean up formatting artifacts
+        # Remove page headers/footers and other formatting artifacts
+        text = re.sub(r'\d+\s+Science\s+\d+-\d+\s+Ch\d+\.qxd\s+\d+/\d+/\d+\s+\d+:\d+\s+Page\s+\d+', '', text)
         
-        print(f"Split text into {len(chunks)} chunks")
-        return chunks
+        # Split text into paragraphs
+        paragraphs = re.split(r'\n\s*\n', text)
+        
+        # Filter out short paragraphs, page numbers, and other artifacts
+        valid_paragraphs = []
+        for p in paragraphs:
+            p = p.strip()
+            # Skip short paragraphs
+            if len(p) < min_paragraph_length:
+                continue
+                
+            # Skip paragraphs that are likely page numbers or headers
+            if re.match(r'^\d+$', p) or re.match(r'^Chapter \d+', p):
+                continue
+                
+            # Skip paragraphs with too many numbers or special characters
+            if sum(c.isdigit() or c in '/:.-' for c in p) / len(p) > 0.3:
+                continue
+            
+            # If paragraph is too long, split it into smaller chunks
+            if len(p) > max_paragraph_length:
+                # Try to split on sentences
+                sentences = re.split(r'(?<=[.!?])\s+', p)
+                current_chunk = ""
+                
+                for sentence in sentences:
+                    if len(current_chunk) + len(sentence) <= max_paragraph_length:
+                        current_chunk += sentence + " "
+                    else:
+                        if current_chunk:
+                            valid_paragraphs.append(current_chunk.strip())
+                        current_chunk = sentence + " "
+                
+                # Add the last chunk if it exists
+                if current_chunk and len(current_chunk) >= min_paragraph_length:
+                    valid_paragraphs.append(current_chunk.strip())
+            else:
+                valid_paragraphs.append(p)
+        
+        print(f"Split text into {len(valid_paragraphs)} paragraphs")
+        return valid_paragraphs
     except Exception as e:
         print(f"Error loading text: {str(e)}")
         traceback.print_exc()
@@ -123,16 +159,24 @@ def process_chunk(chunk: str, models: Dict) -> Dict:
         best_answer, score = extract_best_answer(question, context, models['qa_pipeline'])
         print(f"Generated answer: {best_answer} (confidence: {score:.2f})")
 
-        # Lower the confidence threshold to get more questions
-        if score >= 0.1 and best_answer and len(best_answer.split()) <= 10:
+        if score >= 0.3 and best_answer and len(best_answer.split()) <= 10:
             try:
                 mc_question = create_multiple_choice(question, best_answer, context)
                 if mc_question and 'options' in mc_question and len(mc_question['options']) >= 3:
+                    # Highlight the answer in the context
+                    highlighted_context = context
+                    if best_answer in highlighted_context:
+                        highlighted_context = highlighted_context.replace(
+                            best_answer, 
+                            f"**{best_answer}**"  # Bold the answer in the context
+                        )
+                    
                     return {
                         "question": mc_question['question'],
                         "options": mc_question['options'],
                         "correct_answer": mc_question['answer'],
-                        "context": context[:500]  # Include a shortened context for display
+                        "context": highlighted_context[:1500],  # Include more context with highlighting
+                        "answer_confidence": float(score)
                     }
             except Exception as e:
                 print(f"Error generating distractors: {str(e)}")
