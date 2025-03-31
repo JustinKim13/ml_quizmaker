@@ -10,10 +10,12 @@ import gc
 import re
 import difflib
 import argparse
+import os
+import traceback
 
 # Global variables
 MODEL_CACHE = {}
-NUM_QUESTIONS = 5  # Set your desired number of questions here
+NUM_QUESTIONS = 5  # Default number of questions
 
 def get_model(model_name: str):
     """Cache and return models to prevent reloading."""
@@ -39,238 +41,107 @@ def clean_context(context: str) -> str:
     """Clean the input context."""
     return "".join(context).replace("▁", " ").replace("", "").strip() if isinstance(context, list) else context.strip()
 
-@torch.no_grad()
+@torch.no_grad()  # Disable gradient calculations for inference
 def generate_question(context: str, model, tokenizer, max_length: int = 512) -> str:
-    """Generate a question using T5 model with improved prompting and filtering."""
+    """Generate a question using T5 model."""
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    # Improved prompt formatting
-    prompt = f"generate question: {context}"
-    
     inputs = tokenizer(
-        prompt,
+        f"generate question: {context}",
         return_tensors="pt",
         max_length=max_length,
         truncation=True,
         padding="max_length"
     ).to(device)
 
-    # Increase num_beams for better question quality
     outputs = model.generate(
         input_ids=inputs.input_ids,
         attention_mask=inputs.attention_mask,
         max_length=64,  # Shorter max_length for more focused questions
-        num_beams=5,    # Increased from 4
-        length_penalty=1.5,  # Encourage slightly longer questions
+        num_beams=4,
+        length_penalty=1.0,
         early_stopping=True,
-        no_repeat_ngram_size=2,  # Prevent repetition
-        do_sample=True,  # Enable sampling
-        top_k=50,       # Filter top K tokens
-        top_p=0.95      # Nucleus sampling
+        no_repeat_ngram_size=2  # Prevent repetition
     )
     
-    question = tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
-    
-    # Basic question quality filters
-    if not is_valid_question(question):
-        return generate_question(context, model, tokenizer, max_length)  # Recursively try again
-    
-    return question
-
-def is_valid_question(question: str) -> bool:
-    """Check if the generated question meets quality criteria."""
-    # Must start with question words
-    question_starters = ['what', 'who', 'where', 'when', 'why', 'how', 'which']
-    
-    # Basic validation
-    if not question or len(question.split()) < 4:  # Too short
-        return False
-    
-    question_lower = question.lower()
-    
-    # Must start with a question word
-    if not any(question_lower.startswith(starter) for starter in question_starters):
-        return False
-        
-    # Check for common issues
-    bad_patterns = [
-        'what is what',
-        'who is who',
-        'where is where',
-        'when is when',
-        'of what',  # Often produces "capital of what country" style questions
-    ]
-    
-    if any(pattern in question_lower for pattern in bad_patterns):
-        return False
-        
-    return True
+    return tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
 
 def extract_best_answer(question: str, context: str, qa_pipeline, max_context_length: int = 384) -> tuple:
-    """Extract the best possible answer and its context span."""
+    """Extract the best possible answer."""
     try:
-        # Find the original question and answer in the context
-        question_pattern = r"Trivia Question: (.*?)\? Answer: (.*?)(?=Trivia Question:|$)"
-        matches = re.findall(question_pattern, context)
-        
-        # Find the most similar question to our generated question
-        best_match = None
-        best_similarity = 0
-        for q, a in matches:
-            similarity = difflib.SequenceMatcher(None, question.lower(), q.lower()).ratio()
-            if similarity > best_similarity:
-                best_similarity = similarity
-                best_match = (q, a)
-        
-        if best_match and best_similarity > 0.6:  # Threshold for question similarity
-            orig_question, answer = best_match
-            
-            # Find positions for highlighting
-            question_start = context.find(f"Trivia Question: {orig_question}")
-            question_end = question_start + len(f"Trivia Question: {orig_question}")
-            answer_start = context.find(f"Answer: {answer}") + len("Answer: ")
-            answer_end = answer_start + len(answer)
-            
-            # Update the highlighting format
-            highlighted_context = (
-                context[:question_start] +
-                '<span class="highlight-question">Trivia Question: ' + orig_question + '?</span>' +
-                context[question_end:answer_start] +
-                '<span class="highlight-answer">' + answer + '</span>' +
-                context[answer_end:]
-            )
-            
-            return answer.strip(), 0.9, highlighted_context
-            
-        # Fallback to the QA pipeline if no good match found
         truncated_context = context[:max_context_length]
-        results = qa_pipeline(question=question, context=truncated_context, top_k=5, max_answer_len=50)
+        results = qa_pipeline(question=question, context=truncated_context, top_k=3, max_answer_len=50)
         
         if results:
             best_result = max(results, key=lambda x: x.get("score", 0.0))
-            start_idx = best_result.get("start", 0)
-            end_idx = best_result.get("end", 0)
-            
-            highlighted_context = (
-                context[:start_idx] +
-                "**" + context[start_idx:end_idx] + "**" +
-                context[end_idx:]
-            )
-            
-            return (
-                best_result.get("answer", "No answer found"),
-                best_result.get("score", 0.0),
-                highlighted_context
-            )
-            
-        return "No valid answers found", 0.0, context
+            return best_result.get("answer", "No answer found"), best_result.get("score", 0.0)
+        return "No valid answers found", 0.0
     except Exception as e:
-        print(f"[ERROR] Answer extraction failed: {str(e)}")
-        return f"Error extracting answer: {str(e)}", 0.0, context
-
-def process_chunk(chunk: str, models: Dict) -> Dict:
-    """Process a single chunk to generate a QA pair with improved filtering."""
-    context = clean_context(chunk)
-    
-    # More precise regex pattern that ensures proper Q&A boundaries
-    qa_pattern = r"Trivia Question:\s*((?:(?!Trivia Question:|Answer:).)*?)\?\s*Answer:\s*((?:(?!Trivia Question:).)*?)(?=Trivia Question:|$)"
-    qa_pairs = re.findall(qa_pattern, context, re.DOTALL)
-    
-    if not qa_pairs:
-        return None
-    
-    # Select a random Q&A pair and validate
-    for _ in range(len(qa_pairs)):  # Try each pair until we find a valid one
-        question, answer = random.choice(qa_pairs)
-        question = question.strip()
-        answer = answer.strip()
-        
-        # Validation checks
-        if (len(answer.split()) >= 1 and  # Answer must be at least one complete word
-            not answer.endswith('.') and   # Answer shouldn't end with period
-            "?" not in answer and          # Answer shouldn't contain another question
-            "Answer:" not in answer and    # Answer shouldn't contain another answer
-            len(answer) >= 3):             # Answer must be at least 3 chars
-            
-            # Ensure question ends with question mark
-            if not question.endswith('?'):
-                question = question + '?'
-                
-            print(f"Selected Q&A pair: {question} -> {answer}")
-            
-            try:
-                mc_question = create_multiple_choice(question, answer, context)
-                
-                # Find and highlight the question and answer in the context
-                q_start = context.find(f"Trivia Question: {question.rstrip('?')}")
-                q_end = q_start + len(f"Trivia Question: {question}")
-                a_start = context.find(f"Answer: {answer}")
-                a_end = a_start + len(f"Answer: {answer}")
-                
-                # Update the highlighting format
-                highlighted_context = (
-                    context[:q_start] +
-                    '<span class="highlight-question">Trivia Question: ' + question + '</span>' +
-                    context[q_end:a_start] +
-                    '<span class="highlight-answer">Answer: ' + answer + '</span>' +
-                    context[a_end:]
-                )
-                
-                return {
-                    "question": question,
-                    "options": mc_question['options'],
-                    "correct_answer": answer,
-                    "context": highlighted_context
-                }
-            except Exception as e:
-                print(f"Error generating distractors: {str(e)}")
-                continue
-    
-    return None
+        print(f"Error extracting answer: {str(e)}")
+        return f"Error extracting answer: {str(e)}", 0.0
 
 def load_and_tokenize_text(input_file: str, max_chunk_length: int = 512, overlap: int = 100) -> List[str]:
-    """Load and chunk text efficiently while preserving complete Q&A pairs."""
-    with open(input_file, "r", encoding="utf-8") as file:
-        text = file.read()
-    
-    # Split text into Q&A sections
-    qa_sections = re.split(r'(?=Trivia Question:)', text)
-    
-    chunks = []
-    current_chunk = ""
-    
-    for section in qa_sections:
-        if not section.strip():
-            continue
+    """Load and chunk text efficiently for any text-based PDF."""
+    try:
+        with open(input_file, "r", encoding="utf-8") as file:
+            text = file.read()
             
-        # If adding this section would exceed max length, save current chunk and start new one
-        if len(current_chunk) + len(section) > max_chunk_length:
-            if current_chunk:
-                chunks.append(current_chunk.strip())
-            current_chunk = section
-        else:
-            current_chunk += section
-    
-    # Add the last chunk if it exists
-    if current_chunk:
-        chunks.append(current_chunk.strip())
-    
-    return chunks
+        print(f"Loaded text with {len(text)} characters")
+        
+        # Force split into smaller chunks regardless of paragraph structure
+        chunks = []
+        for i in range(0, len(text), max_chunk_length // 2):
+            chunk = text[i:i + max_chunk_length]
+            if len(chunk.strip()) > 200:  # Only keep chunks with substantial content
+                chunks.append(chunk)
+        
+        print(f"Split text into {len(chunks)} chunks")
+        return chunks
+    except Exception as e:
+        print(f"Error loading text: {str(e)}")
+        traceback.print_exc()
+        return []
 
-def is_answer_type_match(question: str, answer: str) -> bool:
-    """Check if the answer type matches the question type."""
-    question_lower = question.lower()
-    answer_lower = answer.lower()
-    
-    # Check for question-answer type consistency
-    if "what country" in question_lower:
-        return not any(word in answer_lower for word in ["movie", "food", "drink", "year"])
-    elif "what is the main ingredient" in question_lower:
-        return not any(word in answer_lower for word in ["movie", "country", "year", "person"])
-    elif "what movie" in question_lower:
-        return not any(word in answer_lower for word in ["country", "food", "ingredient"])
-    
-    return True
+@torch.no_grad()
+def process_chunk(chunk: str, models: Dict) -> Dict:
+    """Process a single chunk to generate a QA pair."""
+    try:
+        context = clean_context(chunk)
+        
+        # Skip chunks that are too short
+        if len(context) < 200:
+            return None
+            
+        question = generate_question(context, models['qg_model'], models['qg_tokenizer'])
+        
+        # Skip if question is too short or invalid
+        if not question or len(question) < 10:
+            return None
+            
+        print(f"Generated question: {question}")
+
+        best_answer, score = extract_best_answer(question, context, models['qa_pipeline'])
+        print(f"Generated answer: {best_answer} (confidence: {score:.2f})")
+
+        # Lower the confidence threshold to get more questions
+        if score >= 0.1 and best_answer and len(best_answer.split()) <= 10:
+            try:
+                mc_question = create_multiple_choice(question, best_answer, context)
+                if mc_question and 'options' in mc_question and len(mc_question['options']) >= 3:
+                    return {
+                        "question": mc_question['question'],
+                        "options": mc_question['options'],
+                        "correct_answer": mc_question['answer'],
+                        "context": context[:500]  # Include a shortened context for display
+                    }
+            except Exception as e:
+                print(f"Error generating distractors: {str(e)}")
+                traceback.print_exc()
+        return None
+    except Exception as e:
+        print(f"Error in process_chunk: {str(e)}")
+        traceback.print_exc()
+        return None
 
 def main():
     parser = argparse.ArgumentParser()
@@ -289,6 +160,8 @@ def main():
 
         # Load models with CUDA optimization
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"Using device: {device}")
+        
         qg_model, qg_tokenizer = get_model("valhalla/t5-base-qg-hl")
         qg_model = qg_model.to(device)
 
@@ -305,24 +178,35 @@ def main():
         update_status(paths['status'], {"status": "processing", "message": "Processing text..."})
         chunks = load_and_tokenize_text(paths['input'])
         
+        # Save chunks for debugging
         with open(paths['chunks'], "w", encoding="utf-8") as f:
-            json.dump(chunks, f)
+            json.dump(chunks[:50], f)  # Save first 50 chunks to avoid huge files
 
         update_status(paths['status'], {"status": "processing", "message": "Generating questions..."})
 
         qa_pairs = []
-        random.shuffle(chunks)
+        random.shuffle(chunks)  # Randomize to get diverse questions
         
-        for chunk in chunks:
-            if len(qa_pairs) >= args.num_questions:  # Use passed argument
+        # Process more chunks to get more questions
+        max_chunks_to_process = min(100, len(chunks))  # Process up to 100 chunks
+        
+        for i, chunk in enumerate(chunks[:max_chunks_to_process]):
+            if len(qa_pairs) >= args.num_questions:
                 break
                 
-            print(f"\nProcessing chunk: {chunk[:100]}...")
+            print(f"\nProcessing chunk {i+1}/{max_chunks_to_process}: {chunk[:100]}...")
             qa_pair = process_chunk(chunk, models)
+            
             if qa_pair:
                 qa_pairs.append(qa_pair)
                 print(f"\nCreated multiple choice question {len(qa_pairs)} of {args.num_questions}:")
                 print(json.dumps(qa_pair, indent=2))
+                
+                # Update status after each successful question
+                update_status(paths['status'], {
+                    "status": "processing", 
+                    "message": f"Generated {len(qa_pairs)} of {args.num_questions} questions..."
+                })
 
         # Save questions with context to file
         with open(paths['output'], "w", encoding="utf-8") as f:
@@ -340,6 +224,7 @@ def main():
 
     except Exception as e:
         print(f"An error occurred: {str(e)}")
+        traceback.print_exc()  # Print full traceback for debugging
         update_status(paths['status'], {
             "status": "error",
             "error": str(e)

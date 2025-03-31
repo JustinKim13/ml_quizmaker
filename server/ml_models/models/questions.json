@@ -1,15 +1,1 @@
-{
-  "questions": [
-    {
-      "question": "What prison film starring Tim Robbins was based on a story by Stephen King?",
-      "options": [
-        "The Shawshank Redemption",
-        "Opening Scene",
-        "Usual Suspects",
-        "Movie"
-      ],
-      "correct_answer": "The Shawshank Redemption",
-      "context": "Trivia Question: Where did rap superstar Eminem grow up?\nAnswer: Detroit\nTrivia Question: In what city did Princess Diana suffer her fatal car crash?\nAnswer: Paris\nTrivia Question: What grows from an acorn?\nAnswer: Oak Tree\n<span class=\"highlight-question\">Trivia Question: What prison film starring Tim Robbins was based on a story by Stephen King?</span>\n<span class=\"highlight-answer\">Answer: The Shawshank Redemption</span>\nTrivia Question: Which U.S. state has \u201cGarden State\u201d as its nickname?\nAnswer: New Jersey"
-    }
-  ]
-}
+{"questions":[]}
