@@ -83,7 +83,7 @@ def combine_selected_pdfs(directory_path, output_file_path):
 
         combined_text = []
         for file_name in pdf_files:
-            update_status(f"Processing {file_name}...")
+            update_status(f"Processing {file_name[14:]}...")
             file_path = os.path.join(abs_dir_path, file_name)
             
             # Add a timeout mechanism
