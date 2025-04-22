@@ -1,0 +1,49 @@
+{
+  "rejected": [
+    {
+      "question": {
+        "question": "Scientists have recreated thedeadly flu virus that killed oneper cent of the entire worldpopulation between 1918 and1919. Smart, huh?",
+        "options": [
+          "fill two swimming pools",
+          "huh? y ou will probably produce",
+          "bandages, but was a disgustingcolour,",
+          "y ou will probably produce"
+        ],
+        "correct_answer": "Y ou will probably produce",
+        "context": "1001 Shocking Science Facts32\nThe nastiest form of the disease malaria can cause the blood\nvessels in the brain to clog up with dead blood cells, causing\ndeadly spasms.\nIn the First World War, soldiers used the super-absorbent\nsphagnum moss to bandage their wounds. It can soak up four\ntimes as much blood as cotton bandages, but was a disgustingcolour, like dried pus!\nThe human body contains an amazing\n10,000,000,000,000,000,000,000,000,000 atoms.\nScientists have recreated thedeadly flu virus that killed oneper cent of the entire worldpopulation between 1918 and1919. Smart, huh?\nY ou will probably produce\nenough saliva during your lifeto fill two swimming pools.1001 Science 009-046 Ch1.qxd  16/4/08  17:07  Page 32",
+        "answer_confidence": 0.95
+      },
+      "reason": "Correct answer not in options"
+    },
+    {
+      "question": {
+        "question": "Science really is amazing! Did you know there\u2019s a tree that cuts itsown branches off? And a type of male fish that lives inside its femalemate? Or that the land mammal with the most teeth doesn\u2019t actuallyuse any of them? Do you know how long a lightning bolt is? How fastraindrops fall? Or which plant can live for 10,000 years?",
+        "options": [
+          "no? well, you\u2019re about to find out!1001 science 005-008 arc",
+          "wind is slowed as it enters their airways to help them breathe",
+          "no? well, you\u2019re about to find out!1001 science 005-008 arc.qxd  16/4/08  17:05  page 7",
+          "with the most teeth doesn\u2019t actuallyuse any of"
+        ],
+        "correct_answer": "No? Well, you\u2019re about to find out!1001 Science 005-008 Arc.qxd  16/4/08  17:05  Page 7",
+        "context": "Sports science\nEven extreme sports like surfing, snowboarding and skydiving are\nfuelled by the power of science! Here are a few free skydiving facts(not part of your 1001 total) to get your heart racing!\nSkydivers fall through the sky at speeds of 190 kilometres (120 miles)\nper hour! It\u2019s the force of gravity that pulls them back down to Earth.\nAs a skydiver falls, super-fast wind is slowed as it enters their airways\nto help them breathe. Oxygen is also absorbed through their skin.\nScientists developed a vertical wind tunnel that blows air upwards at\nhuge speeds so that skydivers can have their fun indoors!\nA formula for fun\nScience really is amazing! Did you know there\u2019s a tree that cuts itsown branches off? And a type of male fish that lives inside its femalemate? Or that the land mammal with the most teeth doesn\u2019t actuallyuse any of them? Do you know how long a lightning bolt is? How fastraindrops fall? Or which plant can live for 10,000 years?\nNo? Well, you\u2019re about to find out!100",
+        "answer_confidence": 0.95
+      },
+      "reason": "Correct answer not in options"
+    },
+    {
+      "question": {
+        "question": "produces a small electric currentwhen smeared over copper. Slug-powered mobile phone, anyone?",
+        "options": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "correct_answer": "An American",
+        "context": "The world\u2019s tallest limousine was\nbuilt in Australia and measures 3.33metres (10 feet 11 inches) fromfloor to roof. It took 4,000 hours tocomplete it.\nAn Australian scientist started a long experiment in 1927to prove that pitch (a\nsticky black substanceused for waterproofingboats and roofs) is notsolid, but a very thickliquid. He put some pitchin a funnel and left it todrip through \u2013 by 1995,only seven drops had fallenthrough the funnel!\n1001 Shocking Science Facts184\nThe slime produced by a slug\nproduces a small electric currentwhen smeared over copper. Slug-powered mobile phone, anyone?\nAn American\ninventor has built\na computer inside\na stuffed, dead\nbeaver.1001 Science 169-208 Ch7.qxd  17/4/08  08:56  Page 184",
+        "answer_confidence": 0.95
+      },
+      "reason": "Correct answer not in options"
+    }
+  ]
+}

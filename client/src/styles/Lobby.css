@@ -1,6 +1,6 @@
 .lobby {
     position: relative;
-    min-height: 100vh;
+    height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -13,12 +13,14 @@
     position: relative;
     max-width: 800px;
     width: 100%;
+    max-height: 80vh;
     padding: 40px;
     background: rgba(255, 255, 255, 0.97);
     border-radius: 20px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
     backdrop-filter: blur(10px);
     animation: slideIn 0.5s ease-out;
+    overflow-y: auto;
 }
 
 .lobby h2 {
@@ -203,6 +205,29 @@
     flex-direction: column;
     gap: 10px;
     margin-top: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+/* Add custom scrollbar styling for the players list */
+.players-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.players-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 3px;
+}
+
+.players-list::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+    transition: background-color 0.2s ease;
+}
+
+.players-list::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.3);
 }
 
 .player-item {

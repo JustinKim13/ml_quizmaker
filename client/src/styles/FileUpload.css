@@ -1,20 +1,20 @@
 .upload-container {
     position: relative;
-    min-height: 100vh;
+    height: 100vh;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     background: none;
     padding: 20px;
-    gap: 30px;
-    overflow-y: scroll;
+    overflow: hidden;
 }
 
 .upload-card {
     position: relative;
     max-width: 800px;
     width: 100%;
+    max-height: 80vh;
     padding: 40px;
     background: rgba(255, 255, 255, 0.97);
     border-radius: 20px;
