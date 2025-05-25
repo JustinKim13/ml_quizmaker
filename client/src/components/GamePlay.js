@@ -7,7 +7,6 @@ const timePerQuestion = 30
 
 function GamePlay({ questions, onFinish, gameData }) {
     const [currentQuestion, setCurrentQuestion] = useState(0); // state for our current questions and answers to ask
-    const [score, setScore] = useState(0); // state to manage users' scores
     const [showAnswer, setShowAnswer] = useState(false); // state to determine when and how long to show answer
     const [gameCompleted, setGameCompleted] = useState(false); // state to set if game completed or not
     const [ws, setWs] = useState(null);
@@ -39,19 +38,14 @@ function GamePlay({ questions, onFinish, gameData }) {
             console.log("Received WebSocket message:", data);
             
             if (data.type === 'player_answered') {
-                setPlayerScores((prevScores) => {
-                    const currentScore = prevScores[data.playerName]?.score || 0; // Get current score or initialize to 0
-                    const newScore = currentScore + (data.points || 0); // Add the new points
-            
-                    console.log(
-                        `${data.playerName} scored ${data.points || 0}. Total score: ${newScore}`
-                    );
-            
-                    return {
-                        ...prevScores,
-                        [data.playerName]: { ...prevScores[data.playerName], score: newScore },
-                    };
-                });
+                setPlayerScores((prevScores) => ({
+                    ...prevScores,
+                    [data.playerName]: {
+                        ...prevScores[data.playerName],
+                        score: data.totalScore || 0, // Use backend's totalScore
+                        correct: data.correct || 0, // Use backend's correct count
+                    },
+                }));
             }                     
 
             if (data.type === 'player_count') {
@@ -65,22 +59,6 @@ function GamePlay({ questions, onFinish, gameData }) {
             if (data.type === 'show_answer') {
                 setShowAnswer(true);
                 setTimeLeft(null); // Pause the timer after showing the answer
-            
-                if (selectedAnswerRef.current === data.correctAnswer) {
-                    const minPoints = 900;
-                    const maxPoints = 1000;
-                    const totalTime = 10;
-            
-                    // Use player-specific recorded time
-                    const remainingTime = Math.max(0, playerTimesRef.current[gameData.playerName] || 0);
-            
-                    // Calculate points
-                    const points = minPoints + (maxPoints - minPoints) * (remainingTime / totalTime);
-            
-                    // Update the score
-                    setScore((prevScore) => prevScore + Math.floor(points));
-                    console.log(`Points Earned: ${Math.floor(points)} for Remaining Time: ${remainingTime}`);
-                }
             }                         
                         
             if (data.type === "next_question") {
@@ -306,7 +284,22 @@ function GamePlay({ questions, onFinish, gameData }) {
                             <div 
                                 className="question-context"
                                 dangerouslySetInnerHTML={{ 
-                                    __html: currentContext 
+                                    __html: (() => {
+                                        if (!question || !question.correct_answer) return currentContext;
+                                        // Remove markdown bold ** from context
+                                        let cleanContext = currentContext.replace(/\*\*/g, '');
+                                        // Escape regex special chars in answer
+                                        const answer = question.correct_answer.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                        // Highlight all occurrences (case-insensitive) for answer
+                                        const answerRegex = new RegExp(`(${answer})`, 'gi');
+                                        let highlighted = cleanContext.replace(answerRegex, '<span class="highlight-answer">$1</span>');
+                                        // Escape regex special chars in question text
+                                        const questionText = question.question.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                        // Highlight all occurrences (case-insensitive) for question
+                                        const questionRegex = new RegExp(`(${questionText})`, 'gi');
+                                        highlighted = highlighted.replace(questionRegex, '<span class="highlight-question">$1</span>');
+                                        return highlighted;
+                                    })()
                                 }}
                             />
                         </>
@@ -343,7 +336,7 @@ function GamePlay({ questions, onFinish, gameData }) {
                     Question {currentQuestion + 1} of {questions.length}
                 </div>
                 
-                <div className="score-display">Score: {score}</div>
+                <div className="score-display">Score: {playerScores[gameData.playerName]?.score || 0}</div>
     
                 {/* Timer display */}
                 <div className="timer" style={{ color: timeLeft <= 5 ? 'red' : 'inherit' }}>

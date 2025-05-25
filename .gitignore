@@ -6,3 +6,9 @@ server/s2v_reddit_2015_md.tar.gz
 
 # Sense2Vec unpacked model files (entire dir)
 server/ml_models/models/s2v_old/
+
+server/ml_models/models/questions.json
+server/ml_models/models/rejected_questions.json
+server/ml_models/models/status.json
+all-files.txt
+server/ml_models/models/model_cache/

@@ -123,13 +123,13 @@ app.post("/api/upload", async (req, res) => {
                         console.log(`Video processing completed with code ${code}`);
                         // Update status to question generation
                         activeGames.get(gameCode).status = 'Generating questions...';
-                        runQuestionGeneration();
+                        runQuestionGeneration(gameCode);
                     });
                 } else {
                     // If no video, generate questions right after PDF processing
                     // Update status to question generation
                     activeGames.get(gameCode).status = 'Generating questions...';
-                    runQuestionGeneration();
+                    runQuestionGeneration(gameCode);
                 }
             });
 
@@ -303,15 +303,19 @@ wss.on('connection', (ws) => {
                     if (isCorrect) {
                         const minPoints = 900;
                         const maxPoints = 1000;
-                        const totalTime = 10; // Assuming a 10-second timer
-                
-                        points = Math.floor(minPoints + (maxPoints - minPoints) * (game.timeLeft / totalTime));
+                        const totalTime = game.timePerQuestion || 10; // Use the user-selected time per question
+                        const effectiveTimeLeft = Math.min(game.timeLeft, totalTime);
+                        points = Math.floor(minPoints + (maxPoints - minPoints) * (effectiveTimeLeft / totalTime));
                     }
                 
                     // Find the player and update their score
                     const player = game.players.find((p) => p.name === playerName);
                     if (player) {
                         player.score = (player.score || 0) + points;
+                        // Track correct answers
+                        if (isCorrect) {
+                            player.correct = (player.correct || 0) + 1;
+                        }
                     }
                 
                     console.log(`Player ${playerName} answered ${isCorrect ? "correctly" : "incorrectly"} with ${game.timeLeft}s left. Points: ${points}`);
@@ -324,6 +328,8 @@ wss.on('connection', (ws) => {
                         playerName,
                         isCorrect,
                         points,
+                        totalScore: player ? player.score || 0 : 0,
+                        correct: player ? player.correct || 0 : 0,
                     });
                 
                     if (game.answeredPlayers.size === game.players.length || game.timeLeft <= 0) {
@@ -552,9 +558,13 @@ app.post("/api/game/:gameCode/start", async (req, res) => {
 });
 
 // Helper function to run question generation
-function runQuestionGeneration() {
+function runQuestionGeneration(gameCode) {
     const questionScript = path.join(__dirname, 'ml_models/models/t5_model.py');
-    const game = Array.from(activeGames.values())[0]; // Get the current game
+    const game = activeGames.get(gameCode); // Get the correct game
+    if (!game) {
+        console.error(`No game found for gameCode: ${gameCode}`);
+        return;
+    }
     const questionProcess = spawn('python3', [questionScript, '--num_questions', game.numQuestions.toString()]);
     
     questionProcess.stdout.on('data', (data) => {

@@ -9,7 +9,7 @@ const GameOver = ({ playerScores, questions, onPlayAgain, gameData, handleLobby 
         .map(([name, data]) => ({
             nickname: name,
             score: data.score,
-            totalCorrect: Math.floor(data.score / 1000) // Approximate correct answers from score
+            totalCorrect: data.correct || 0 // Use backend correct count
         }));
 
     const [first, second, third] = topPlayers;

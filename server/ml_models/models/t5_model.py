@@ -8,9 +8,7 @@ from pathlib import Path
 from typing import Dict, List
 import gc
 import re
-import difflib
 import argparse
-import os
 import traceback
 
 # Global variables
