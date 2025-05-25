@@ -71,7 +71,7 @@ function GamePlay({ questions, onFinish, gameData }) {
                 if (data.currentQuestion < questions.length) {
                     setCurrentQuestion(data.currentQuestion);
                     setCurrentContext(data.context || ""); // Set context
-                    setTimeLeft(10); // Reset the timer
+                    setTimeLeft(gameData.timePerQuestion); // Use the user-selected time per question
                 } else {
                     console.log("setting game completed to true");
                     setGameCompleted(true);
@@ -106,7 +106,7 @@ function GamePlay({ questions, onFinish, gameData }) {
         return () => {
             websocket.close();
         };
-    }, [gameData.gameCode, gameData.playerName, questions, onFinish]);
+    }, [gameData.gameCode, gameData.playerName, questions, onFinish, gameData.timePerQuestion]);
 
     // Handle page navigation and refresh
     useEffect(() => {

@@ -128,66 +128,61 @@ const FileUpload = ({ setGameData, username, onBack }) => {
                         />
                     </div>
 
-                    <div className="settings-section">
-                        <div className="control-item private-game-checkbox">
-                            <label htmlFor="privateGameCheckbox" className="private-game-label">
-                            Private Game
-                            </label>
-                            <input
-                            type="checkbox"
-                            checked={isPrivate}
-                            onChange={() => setIsPrivate(!isPrivate)}
-                            id="privateGameCheckbox"
-                            />
-                        </div>
-                        </div>
-
-                        
-
-                        <button 
+                    <button 
                         className="advanced-settings-toggle"
                         onClick={() => setShowAdvanced(!showAdvanced)}
-                        >
+                    >
                         {showAdvanced ? '▼ Advanced Settings' : '▶ Advanced Settings'}
-                        </button>
+                    </button>
 
-                        <div className={`advanced-settings ${showAdvanced ? 'show' : ''}`}>
+                    <div className={`advanced-settings ${showAdvanced ? 'show' : ''}`}>
                         <div className="control-item">
                             <label className="control-label">Time per Question: {timePerQuestion}s</label>
                             <div className="slider-container">
-                            <input
-                                type="range"
-                                min="3"
-                                max="300"
-                                value={timePerQuestion}
-                                onChange={(e) => setTimePerQuestion(parseInt(e.target.value))}
-                                className="slider"
-                            />
-                            <div className="slider-labels">
-                                <span>3s</span>
-                                <span>5m</span>
-                            </div>
+                                <input
+                                    type="range"
+                                    min="3"
+                                    max="300"
+                                    value={timePerQuestion}
+                                    onChange={(e) => setTimePerQuestion(parseInt(e.target.value))}
+                                    className="slider"
+                                />
+                                <div className="slider-labels">
+                                    <span>3s</span>
+                                    <span>5m</span>
+                                </div>
                             </div>
                         </div>
                         <div className="control-item">
                             <label className="control-label">Number of Questions: {numQuestions}</label>
                             <div className="slider-container">
-                            <input
-                                type="range"
-                                min="1"
-                                max="20"
-                                value={numQuestions}
-                                onChange={(e) => setNumQuestions(parseInt(e.target.value))}
-                                className="slider"
-                            />
-                            <div className="slider-labels">
-                                <span>1</span>
-                                <span>20</span>
-                            </div>
+                                <input
+                                    type="range"
+                                    min="1"
+                                    max="20"
+                                    value={numQuestions}
+                                    onChange={(e) => setNumQuestions(parseInt(e.target.value))}
+                                    className="slider"
+                                />
+                                <div className="slider-labels">
+                                    <span>1</span>
+                                    <span>20</span>
+                                </div>
                             </div>
                         </div>
-                        </div>
+                    </div>
 
+                    <div className="control-item private-game-checkbox">
+                        <label htmlFor="privateGameCheckbox" className="private-game-label">
+                            Private Game
+                        </label>
+                        <input
+                            type="checkbox"
+                            checked={isPrivate}
+                            onChange={() => setIsPrivate(!isPrivate)}
+                            id="privateGameCheckbox"
+                        />
+                    </div>
 
                     <div className="submit-wrapper">
                         <button className="submit-button" onClick={handleSubmit}>
