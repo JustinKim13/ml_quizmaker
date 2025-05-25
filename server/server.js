@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require("express");
 const multer = require("multer");
 const fs = require("fs");
@@ -6,15 +7,18 @@ const { exec, spawn } = require("child_process");
 const cors = require("cors");
 const WebSocket = require('ws');
 
-// file paths
-const QUESTIONS_FILE = path.join(__dirname, "ml_models/models/questions.json");
-const UPLOAD_DIR = path.join(__dirname, "ml_models/data_preprocessing/pdf_files");
-const STATUS_FILE = path.join(__dirname, "ml_models/models/status.json");
-const COMBINED_OUTPUT_FILE = path.join(__dirname, "ml_models/outputs/combined_output.txt");
+// file paths from environment variables
+const QUESTIONS_FILE = path.join(__dirname, process.env.QUESTIONS_FILE_PATH);
+const UPLOAD_DIR = path.join(__dirname, process.env.UPLOAD_DIR_PATH);
+const STATUS_FILE = path.join(__dirname, process.env.STATUS_FILE_PATH);
+const COMBINED_OUTPUT_FILE = path.join(__dirname, process.env.COMBINED_OUTPUT_FILE_PATH);
 
 const app = express(); // create express app instance
-app.use(cors()); // allow cors
-app.use(express.json()); // parse json bodies
+app.use(cors({
+    origin: process.env.CORS_ORIGIN,
+    credentials: true
+}));
+app.use(express.json());
 
 const activeGames = new Map(); // store active games and players
 
@@ -226,7 +230,14 @@ app.use((err, req, res, next) => {
 
 // Start server
 const server = require('http').createServer(app);
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ 
+    server,
+    clientTracking: true,
+    perMessageDeflate: false,
+    maxPayload: 50 * 1024 * 1024, // 50MB max payload
+    handshakeTimeout: process.env.WS_TIMEOUT || 60000,
+    heartbeatInterval: process.env.WS_HEARTBEAT_INTERVAL || 30000
+});
 
 // Store WebSocket connections with their game codes
 const gameConnections = new Map(); // gameCode -> Set of WebSocket connections
@@ -510,18 +521,52 @@ app.post("/api/join-game", (req, res) => {
 
 // Add an endpoint to get list of active games
 app.get("/api/active-games", (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Filter games that are:
+    // 1. Not private
+    // 2. Have players
+    // 3. Are actually in progress (not just created)
     const games = Array.from(activeGames.entries())
-        .filter(([_, game]) => game.players.length > 0) // Ensure the game has players
+        .filter(([_, game]) => {
+            return !game.isPrivate && 
+                   game.players.length > 0 && 
+                   game.status !== 'processing' &&
+                   game.questions && 
+                   game.questions.length > 0;
+        })
         .map(([code, game]) => ({
             gameCode: code,
             playerCount: game.players.length,
-            isPrivate: game.isPrivate ?? false, // Default to false if undefined
+            maxPlayers: process.env.MAX_PLAYERS_PER_GAME || 50,
+            timePerQuestion: game.timePerQuestion,
+            numQuestions: game.numQuestions,
+            currentQuestion: game.currentQuestion,
+            status: game.status
         }))
-        .filter((game) => !game.isPrivate); // Filter only public games
+        .sort((a, b) => b.playerCount - a.playerCount); // Sort by player count
 
-    console.log("Filtered active games:", games);
+    const totalGames = games.length;
+    const paginatedGames = games.slice(skip, skip + limit);
 
-    res.json({ games });
+    console.log("Filtered active games:", {
+        total: totalGames,
+        page,
+        limit,
+        games: paginatedGames
+    });
+
+    res.json({ 
+        games: paginatedGames,
+        pagination: {
+            total: totalGames,
+            page,
+            limit,
+            totalPages: Math.ceil(totalGames / limit)
+        }
+    });
 });
 
 // Add this endpoint to get players for a specific game
@@ -612,6 +657,7 @@ app.post("/api/game/:gameCode/leave", (req, res) => {
     });
 });
 
-server.listen(5000, () => {
-    console.log("Server running on port 5000");
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
 });

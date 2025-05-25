@@ -7,4 +7,16 @@ ml_models/data_preprocessing/pdf_files/
 *.mp4
 *.wav
 
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Node modules and logs
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Virtual environment
 env/
