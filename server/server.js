@@ -25,17 +25,24 @@ const activeGames = new Map(); // store active games and players
 // storage configuration for multer
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        if (!fs.existsSync(UPLOAD_DIR)) { // check if upload directory exists
-            fs.mkdirSync(UPLOAD_DIR, { recursive: true }); // create it if not
+        if (!fs.existsSync(UPLOAD_DIR)) {
+            fs.mkdirSync(UPLOAD_DIR, { recursive: true });
         }
-        cb(null, UPLOAD_DIR); // set destination
+        cb(null, UPLOAD_DIR);
     },
     filename: (req, file, cb) => {
-        cb(null, `${Date.now()}-${file.originalname}`); // set unique filename
+        cb(null, `${Date.now()}-${file.originalname}`);
     },
 });
 
-const upload = multer({ storage }); // create multer instance with storage configuration
+// Add file size and count limits
+const upload = multer({ 
+    storage,
+    limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB max file size
+        files: 5 // max 5 files per upload
+    }
+});
 
 // clear directory
 const clearDirectory = (directory) => {
@@ -85,7 +92,8 @@ app.post("/api/upload", async (req, res) => {
                 timer: null,
                 timeLeft: timePerQuestion,
                 timePerQuestion: timePerQuestion,
-                numQuestions: numQuestions
+                numQuestions: numQuestions,
+                lastActivity: Date.now() // Add timestamp for cleanup
             });
 
             // Clear combined_output.txt at the start of the upload process
@@ -508,6 +516,21 @@ app.post("/api/join-game", (req, res) => {
     }
 
     const game = activeGames.get(gameCode);
+    
+    // Check if game is full
+    const maxPlayers = parseInt(process.env.MAX_PLAYERS_PER_GAME) || 50;
+    if (game.players.length >= maxPlayers) {
+        return res.status(400).json({ error: "Game is full" });
+    }
+
+    // Check if username is already taken in this game
+    if (game.players.some(player => player.name === username)) {
+        return res.status(400).json({ error: "Username already taken in this game" });
+    }
+
+    // Update last activity timestamp
+    game.lastActivity = Date.now();
+    
     game.players.push({ name: username, isHost: false });
     
     console.log("Updated players for game:", gameCode, game.players);
@@ -656,6 +679,42 @@ app.post("/api/game/:gameCode/leave", (req, res) => {
         hostLeft: false
     });
 });
+
+// Add game cleanup function
+function cleanupInactiveGames() {
+    const now = Date.now();
+    const INACTIVE_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+    const MAX_ACTIVE_GAMES = 100; // Maximum number of active games
+
+    for (const [gameCode, game] of activeGames.entries()) {
+        // Remove games that haven't had activity in 30 minutes
+        if (now - game.lastActivity > INACTIVE_TIMEOUT) {
+            console.log(`Cleaning up inactive game: ${gameCode}`);
+            activeGames.delete(gameCode);
+            if (gameConnections.has(gameCode)) {
+                gameConnections.delete(gameCode);
+            }
+        }
+    }
+
+    // If we have too many games, remove the oldest ones
+    if (activeGames.size > MAX_ACTIVE_GAMES) {
+        const gamesToRemove = Array.from(activeGames.entries())
+            .sort((a, b) => a[1].lastActivity - b[1].lastActivity)
+            .slice(0, activeGames.size - MAX_ACTIVE_GAMES);
+
+        for (const [gameCode, _] of gamesToRemove) {
+            console.log(`Removing excess game: ${gameCode}`);
+            activeGames.delete(gameCode);
+            if (gameConnections.has(gameCode)) {
+                gameConnections.delete(gameCode);
+            }
+        }
+    }
+}
+
+// Run cleanup every 5 minutes
+setInterval(cleanupInactiveGames, 5 * 60 * 1000);
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
