@@ -6,12 +6,8 @@ const path = require("path");
 const { exec, spawn } = require("child_process");
 const cors = require("cors");
 const WebSocket = require('ws');
-
-// file paths from environment variables
-const QUESTIONS_FILE = path.join(__dirname, process.env.QUESTIONS_FILE_PATH);
-const UPLOAD_DIR = path.join(__dirname, process.env.UPLOAD_DIR_PATH);
-const STATUS_FILE = path.join(__dirname, process.env.STATUS_FILE_PATH);
-const COMBINED_OUTPUT_FILE = path.join(__dirname, process.env.COMBINED_OUTPUT_FILE_PATH);
+const s3Utils = require('./utils/s3');
+const { log, logLevels } = require('./utils/logger');
 
 const app = express(); // create express app instance
 app.use(cors({
@@ -22,70 +18,102 @@ app.use(express.json());
 
 const activeGames = new Map(); // store active games and players
 
-// storage configuration for multer
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        if (!fs.existsSync(UPLOAD_DIR)) {
-            fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-        }
-        cb(null, UPLOAD_DIR);
+// Game state management with in-memory storage
+const gameState = {
+    async getGame(gameCode) {
+        return activeGames.get(gameCode) || null;
     },
-    filename: (req, file, cb) => {
-        cb(null, `${Date.now()}-${file.originalname}`);
-    },
-});
 
-// Add file size and count limits
+    async setGame(gameCode, game) {
+        activeGames.set(gameCode, game);
+    },
+
+    async deleteGame(gameCode) {
+        activeGames.delete(gameCode);
+    },
+
+    async getAllGames() {
+        return Array.from(activeGames.values());
+    }
+};
+
+// WebSocket connection management with Redis
+const wsState = {
+    async addConnection(gameCode, wsId) {
+        await redis.sadd(`ws:${gameCode}`, wsId);
+    },
+
+    async removeConnection(gameCode, wsId) {
+        await redis.srem(`ws:${gameCode}`, wsId);
+    },
+
+    async getConnections(gameCode) {
+        return await redis.smembers(`ws:${gameCode}`);
+    }
+};
+
+// Remove local file path constants and use S3 paths instead
+const S3_PATHS = {
+    QUESTIONS: 'questions/questions.json',
+    UPLOADS: 'uploads/',
+    STATUS: 'status/status.json',
+    COMBINED_OUTPUT: 'outputs/combined_output.txt'
+};
+
+// Update storage configuration for multer to use memory storage
 const upload = multer({ 
-    storage,
+    storage: multer.memoryStorage(),
     limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB max file size
+        fileSize: 100 * 1024 * 1024, // 100MB max file size
         files: 5 // max 5 files per upload
     }
 });
 
-// clear directory
-const clearDirectory = (directory) => {
-    return new Promise((resolve, reject) => {
-        fs.rm(directory, { recursive: true, force: true }, (err) => { // remove directory recursively
-            if (err) {
-                reject(err); // reject promise if error
-            } else {
-                // Recreate the empty directory
-                fs.mkdirSync(directory, { recursive: true }); // create directory
-                resolve(); // resolve promise
-            }
-        });
-    });
+// Update clear directory function to use S3
+const clearDirectory = async (prefix) => {
+    try {
+        await s3Utils.clearDirectory(prefix);
+    } catch (error) {
+        log(logLevels.ERROR, 'Error clearing directory', { error: error.message, prefix });
+        throw error;
+    }
 };
 
-// upload endpoint
+// Update upload endpoint
 app.post("/api/upload", async (req, res) => {
     try {
-        await clearDirectory(UPLOAD_DIR);
-        // Also clear old questions file
-        if (fs.existsSync(QUESTIONS_FILE)) {
-            fs.writeFileSync(QUESTIONS_FILE, JSON.stringify({ questions: [] }));
+        // Remove any old games for this host
+        const username = req.body.username;
+        for (const [code, game] of activeGames.entries()) {
+            if (game.host === username) {
+                activeGames.delete(code);
+            }
         }
+        await clearDirectory(S3_PATHS.UPLOADS);
         
         upload.array("files")(req, res, async (err) => {
             if (err) {
-                console.error("Upload error:", err);
+                log(logLevels.ERROR, 'Upload error', { error: err.message });
                 return res.status(500).json({ error: "File upload failed" });
             }
 
-            // create a random game code
             const gameCode = Math.random().toString(36).substr(2, 6).toUpperCase();
-            const username = req.body.username; // get username from request body
-            const isPrivate = req.body.isPrivate === 'true' || req.body.isPrivate === true; // Ensure isPrivate is a boolean
+            const username = req.body.username;
+            const isPrivate = req.body.isPrivate === 'true' || req.body.isPrivate === true;
             const timePerQuestion = parseInt(req.body.timePerQuestion) || 30;
             const numQuestions = parseInt(req.body.numQuestions) || 10;
 
-            // initialize game data with host player
-            activeGames.set(gameCode, {
+            // Upload files to S3
+            const uploadPromises = req.files.map(file => 
+                s3Utils.uploadFile(file, `${S3_PATHS.UPLOADS}${Date.now()}-${file.originalname}`)
+            );
+            await Promise.all(uploadPromises);
+
+            // Initialize game data
+            const gameData = {
                 players: [{ name: username, isHost: true }],
                 status: 'processing',
-                host: username, 
+                host: username,
                 isPrivate: isPrivate,
                 questions: [],
                 currentQuestion: 0,
@@ -93,23 +121,24 @@ app.post("/api/upload", async (req, res) => {
                 timeLeft: timePerQuestion,
                 timePerQuestion: timePerQuestion,
                 numQuestions: numQuestions,
-                lastActivity: Date.now() // Add timestamp for cleanup
-            });
+                lastActivity: Date.now()
+            };
 
-            // Clear combined_output.txt at the start of the upload process
-            if (fs.existsSync(COMBINED_OUTPUT_FILE)) {
-                fs.writeFileSync(COMBINED_OUTPUT_FILE, '');
-                console.log("Cleared combined_output.txt at the start of the upload process.");
-            }
+            await gameState.setGame(gameCode, gameData);
 
-            // run pdf extraction script
-            const extractScript = path.join(__dirname, 'ml_models/data_preprocessing/extract_text_pdf.py'); // get our script path
-            const extractProcess = spawn('python3', [extractScript]); // spawn python process
+            // Clear combined output in S3
+            await s3Utils.deleteFile(S3_PATHS.COMBINED_OUTPUT);
+
+            // Run PDF extraction script
+            const extractScript = path.join(__dirname, 'ml_models/data_preprocessing/extract_text_pdf.py');
+            const extractProcess = spawn('python3', [extractScript]);
             
             // check if pdf extraction is successful
             extractProcess.stdout.on('data', (data) => { // log stdout
                 console.log('PDF Extraction:', data.toString()); 
-            }); extractProcess.stderr.on('data', (data) => { // log stderr
+            }); 
+            
+            extractProcess.stderr.on('data', (data) => { // log stderr
                 console.error('PDF Extraction Error:', data.toString());
             });
 
@@ -117,31 +146,48 @@ app.post("/api/upload", async (req, res) => {
             extractProcess.on('close', (code) => { // event listener that triggers when extraction is complete
                 console.log(`PDF extraction completed with code ${code}`);
                 
-                const videoUrl = req.body.videoUrl; // get video url from request body  
-                if (videoUrl) { // if video url is provided
-                    const videoProcess = spawn('python3', [path.join(__dirname, 'ml_models/data_preprocessing/extract_text_url.py')]); // spawn python process
-                    
-                    videoProcess.stdin.write(videoUrl + '\n'); // write video url to stdin
-                    videoProcess.stdin.end(); // end stdin
+                if (code === 0) { // Only proceed if PDF extraction was successful
+                    const videoUrl = req.body.videoUrl; // get video url from request body  
+                    if (videoUrl) { // if video url is provided
+                        const videoProcess = spawn('python3', [path.join(__dirname, 'ml_models/data_preprocessing/extract_text_url.py')]); // spawn python process
+                        
+                        videoProcess.stdin.write(videoUrl + '\n'); // write video url to stdin
+                        videoProcess.stdin.end(); // end stdin
 
-                    videoProcess.stdout.on('data', (data) => { // log stdout
-                        console.log('Video Processing:', data.toString());
-                    }); videoProcess.stderr.on('data', (data) => { // log stderr
-                        console.error('Video Processing Error:', data.toString());
-                    });
+                        videoProcess.stdout.on('data', (data) => { // log stdout
+                            console.log('Video Processing:', data.toString());
+                        }); 
+                        
+                        videoProcess.stderr.on('data', (data) => { // log stderr
+                            console.error('Video Processing Error:', data.toString());
+                        });
 
-                    // generate questions after video processing is complete
-                    videoProcess.on('close', (code) => { // event listener that triggers when video processing is complete
-                        console.log(`Video processing completed with code ${code}`);
-                        // Update status to question generation
-                        activeGames.get(gameCode).status = 'Generating questions...';
-                        runQuestionGeneration(gameCode);
-                    });
+                        // generate questions after video processing is complete
+                        videoProcess.on('close', (videoCode) => { // event listener that triggers when video processing is complete
+                            console.log(`Video processing completed with code ${videoCode}`);
+                            if (videoCode === 0) {
+                                // Update status to question generation
+                                const game = activeGames.get(gameCode);
+                                if (game) {
+                                    game.status = 'Generating questions...';
+                                    runQuestionGeneration(gameCode);
+                                }
+                            }
+                        });
+                    } else {
+                        // If no video, generate questions right after PDF processing
+                        const game = activeGames.get(gameCode);
+                        if (game) {
+                            game.status = 'Generating questions...';
+                            runQuestionGeneration(gameCode);
+                        }
+                    }
                 } else {
-                    // If no video, generate questions right after PDF processing
-                    // Update status to question generation
-                    activeGames.get(gameCode).status = 'Generating questions...';
-                    runQuestionGeneration(gameCode);
+                    console.error('PDF extraction failed with code:', code);
+                    const game = activeGames.get(gameCode);
+                    if (game) {
+                        game.status = 'error';
+                    }
                 }
             });
 
@@ -155,44 +201,68 @@ app.post("/api/upload", async (req, res) => {
             });
         });
     } catch (error) {
-        console.error("Upload error:", error);
+        log(logLevels.ERROR, 'Upload error', { error: error.message });
         res.status(500).json({ error: "Failed to process files" });
     }
 });
 
-app.get("/api/status", (req, res) => {
+// Update status endpoint
+app.get("/api/status", async (req, res) => {
     try {
-        if (fs.existsSync(STATUS_FILE)) {
-            const status = JSON.parse(fs.readFileSync(STATUS_FILE, 'utf8'));
-            console.log("Current status:", status);
-            
-            // Only set questionsGenerated to true if status is 'completed' AND we have questions
-            if (status.status === 'completed') {
-                const questionsData = JSON.parse(fs.readFileSync(QUESTIONS_FILE, 'utf8'));
-                const questionsGenerated = questionsData.questions && questionsData.questions.length > 0;
-                res.status(200).json({ 
-                    questionsGenerated,
-                    status: questionsGenerated ? 'completed' : 'processing',
-                    message: status.message,
-                    timestamp: status.timestamp
-                });
-            } else {
-                res.status(200).json({ 
+        const statusFile = await s3Utils.getFile(S3_PATHS.STATUS);
+        let status = null;
+        if (statusFile) {
+            try {
+                status = JSON.parse(statusFile);
+            } catch (parseError) {
+                log(logLevels.ERROR, 'Error parsing status file', { error: parseError.message });
+                return res.status(200).json({ 
                     questionsGenerated: false,
-                    status: status.status,
-                    message: status.message,
-                    timestamp: status.timestamp
+                    status: 'error',
+                    message: 'Error parsing status file'
                 });
             }
+        }
+
+        // Check if any game is ready (for this session, just check all active games)
+        let gameReady = false;
+        let questionsCount = 0;
+        for (const game of activeGames.values()) {
+            if (game.status === 'ready' && game.questions && game.questions.length > 0) {
+                gameReady = true;
+                questionsCount = game.questions.length;
+                break;
+            }
+        }
+
+        if (gameReady) {
+            return res.status(200).json({
+                questionsGenerated: true,
+                status: 'ready',
+                message: `Questions ready! (${questionsCount} questions generated)`,
+                timestamp: status ? status.timestamp : new Date().toISOString()
+            });
+        }
+
+        if (status) {
+            return res.status(200).json({
+                questionsGenerated: false,
+                status: status.status,
+                message: status.message,
+                progress: status.progress,
+                total_questions: status.total_questions,
+                questions_generated: status.questions_generated,
+                timestamp: status.timestamp
+            });
         } else {
-            res.status(200).json({ 
+            return res.status(200).json({
                 questionsGenerated: false,
                 status: 'unknown',
                 message: 'Starting...'
             });
         }
     } catch (error) {
-        console.error("Error checking status:", error);
+        log(logLevels.ERROR, 'Error checking status', { error: error.message });
         res.status(500).json({ 
             questionsGenerated: false,
             status: 'error',
@@ -201,39 +271,53 @@ app.get("/api/status", (req, res) => {
     }
 });
 
-app.get("/api/questions", (req, res) => {
-    console.log("Reading questions from:", QUESTIONS_FILE);
-    
-    fs.readFile(QUESTIONS_FILE, "utf8", (err, data) => {
-        if (err) {
-            console.error("Error reading questions file:", err);
-            return res.status(500).json({
-                error: "Error reading questions file",
-                details: err.message
-            });
-        }
+// Update questions endpoint
+app.get("/api/questions", async (req, res) => {
+    try {
+        log(logLevels.INFO, 'Reading questions from S3', { path: S3_PATHS.QUESTIONS });
+        
+        const questionsFile = await s3Utils.getFile(S3_PATHS.QUESTIONS);
+        const questionsData = JSON.parse(questionsFile.toString());
+        
+        log(logLevels.INFO, 'Sending questions data', { questionCount: questionsData.questions?.length });
+        res.status(200).json(questionsData);
+    } catch (error) {
+        log(logLevels.ERROR, 'Error reading questions', { error: error.message });
+        res.status(500).json({
+            error: "Error reading questions file",
+            details: error.message
+        });
+    }
+});
 
-        try {
-            const questionsData = JSON.parse(data);
-            console.log("Sending questions data:", questionsData);
-            res.status(200).json(questionsData);
-        } catch (parseError) {
-            console.error("Error parsing questions:", parseError);
-            res.status(500).json({
-                error: "Error parsing questions",
-                details: parseError.message
-            });
-        }
+// Add error handling middleware
+app.use((err, req, res, next) => {
+    log(logLevels.ERROR, 'Unhandled error occurred', {
+        error: err.message,
+        stack: err.stack,
+        path: req.path,
+        method: req.method
+    });
+    
+    res.status(500).json({
+        error: 'Internal server error',
+        message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : err.message
     });
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-    console.error('Global error handler:', err);
-    res.status(500).json({
-        error: 'Server error',
-        details: err.message
+// Add request logging middleware
+app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        log(logLevels.INFO, 'Request completed', {
+            method: req.method,
+            path: req.path,
+            status: res.statusCode,
+            duration: `${duration}ms`
+        });
     });
+    next();
 });
 
 // Start server
@@ -256,7 +340,10 @@ wss.on('connection', (ws) => {
     ws.on('message', async (message) => {
         try {
             const data = JSON.parse(message);
-            console.log('Received WebSocket message:', data);
+            log(logLevels.DEBUG, 'WebSocket message received', { 
+                type: data.type,
+                gameCode: data.gameCode 
+            });
             
             switch (data.type) {
                 case 'join_game':
@@ -265,12 +352,14 @@ wss.on('connection', (ws) => {
                         gameConnections.set(userGameCode, new Set());
                     }
                     gameConnections.get(userGameCode).add(ws);
-                    console.log(`Player joined game ${userGameCode}`);
+                    log(logLevels.INFO, 'Player joined game via WebSocket', {
+                        gameCode: userGameCode,
+                        playerName: data.playerName
+                    });
 
-                    // Broadcast updated player count
                     broadcastToGame(userGameCode, {
                         type: 'player_count',
-                        playerCount: gameConnections.get(userGameCode).size,
+                        playerCount: gameConnections.get(userGameCode).size
                     });
                     break;
 
@@ -284,10 +373,10 @@ wss.on('connection', (ws) => {
 
                         game.currentQuestion = 0;
                         startGameTimer(data.gameCode);
-                        // broadcast game started
+                        // broadcast game started with proper JSON serialization
                         broadcastToGame(data.gameCode, {
                             type: 'game_started',
-                            questions: 'game.questions',
+                            questions: game.questions
                         });
                     }
                     break;
@@ -424,14 +513,18 @@ wss.on('connection', (ws) => {
 
             }
         } catch (error) {
-            console.error('WebSocket message error:', error);
+            log(logLevels.ERROR, 'WebSocket message error', {
+                error: error.message,
+                stack: error.stack,
+                gameCode: userGameCode
+            });
         }
     });
 
     ws.on('close', () => {
         if (userGameCode && gameConnections.has(userGameCode)) {
             gameConnections.get(userGameCode).delete(ws);
-            console.log(`Player left game ${userGameCode}`);
+            log(logLevels.INFO, 'Player left game via WebSocket', { gameCode: userGameCode });
         }
     });
 });
@@ -439,9 +532,18 @@ wss.on('connection', (ws) => {
 function broadcastToGame(gameCode, data) {
     console.log(`Broadcasting to game ${gameCode}:`, data);
     if (gameConnections.has(gameCode)) {
+        const message = JSON.stringify(data);
         gameConnections.get(gameCode).forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify(data));
+                try {
+                    client.send(message);
+                } catch (error) {
+                    log(logLevels.ERROR, 'Error sending WebSocket message', {
+                        error: error.message,
+                        gameCode,
+                        messageType: data.type
+                    });
+                }
             }
         });
     }
@@ -508,10 +610,10 @@ function startGameTimer(gameCode) {
 // Add this endpoint to handle joining games
 app.post("/api/join-game", (req, res) => {
     const { gameCode, username } = req.body;
-    console.log("Join attempt:", { gameCode, username });
+    log(logLevels.INFO, 'Join game attempt', { gameCode, username });
     
     if (!activeGames.has(gameCode)) {
-        console.log("Game not found:", gameCode);
+        log(logLevels.WARN, 'Game not found', { gameCode });
         return res.status(404).json({ error: "Game not found" });
     }
 
@@ -520,11 +622,13 @@ app.post("/api/join-game", (req, res) => {
     // Check if game is full
     const maxPlayers = parseInt(process.env.MAX_PLAYERS_PER_GAME) || 50;
     if (game.players.length >= maxPlayers) {
+        log(logLevels.WARN, 'Game is full', { gameCode, currentPlayers: game.players.length, maxPlayers });
         return res.status(400).json({ error: "Game is full" });
     }
 
     // Check if username is already taken in this game
     if (game.players.some(player => player.name === username)) {
+        log(logLevels.WARN, 'Username already taken', { gameCode, username });
         return res.status(400).json({ error: "Username already taken in this game" });
     }
 
@@ -533,7 +637,11 @@ app.post("/api/join-game", (req, res) => {
     
     game.players.push({ name: username, isHost: false });
     
-    console.log("Updated players for game:", gameCode, game.players);
+    log(logLevels.INFO, 'Player joined game', { 
+        gameCode, 
+        username, 
+        playerCount: game.players.length 
+    });
     
     res.json({ 
         gameCode,
@@ -633,18 +741,78 @@ function runQuestionGeneration(gameCode) {
         console.error(`No game found for gameCode: ${gameCode}`);
         return;
     }
+
+    console.log(`Starting question generation for game ${gameCode} with ${game.numQuestions} questions`);
+    
     const questionProcess = spawn('python3', [questionScript, '--num_questions', game.numQuestions.toString()]);
     
+    let stdoutData = '';
+    let stderrData = '';
+    
     questionProcess.stdout.on('data', (data) => {
-        console.log('Question Generation:', data.toString());
+        const output = data.toString();
+        stdoutData += output;
+        console.log('Question Generation:', output);
     });
 
     questionProcess.stderr.on('data', (data) => {
-        console.error('Question Generation Error:', data.toString());
+        const error = data.toString();
+        stderrData += error;
+        console.error('Question Generation Error:', error);
     });
 
-    questionProcess.on('close', (code) => {
+    questionProcess.on('close', async (code) => {
         console.log(`Question generation completed with code ${code}`);
+        const game = activeGames.get(gameCode);
+        if (code === 0) {
+            console.log('Question generation successful');
+            if (game) {
+                // Try to load questions from S3
+                try {
+                    const questionsFile = await s3Utils.getFile(S3_PATHS.QUESTIONS);
+                    const questionsData = JSON.parse(questionsFile);
+                    if (questionsData.questions && questionsData.questions.length > 0) {
+                        game.questions = questionsData.questions;
+                        game.status = 'ready';
+                        broadcastToGame(gameCode, {
+                            type: 'game_ready',
+                            questionsCount: questionsData.questions.length
+                        });
+                    } else {
+                        game.status = 'error';
+                        broadcastToGame(gameCode, {
+                            type: 'game_error',
+                            message: 'No questions were generated. Please try again with a different file.'
+                        });
+                        console.error('No questions generated');
+                    }
+                } catch (err) {
+                    game.status = 'error';
+                    broadcastToGame(gameCode, {
+                        type: 'game_error',
+                        message: 'Failed to load questions after generation.'
+                    });
+                    console.error('Failed to load questions after generation:', err);
+                }
+            }
+        } else {
+            console.error('Question generation failed:', stderrData);
+            if (game) {
+                game.status = 'error';
+                broadcastToGame(gameCode, {
+                    type: 'game_error',
+                    message: 'Question generation failed. Please try again.'
+                });
+            }
+        }
+    });
+
+    questionProcess.on('error', (error) => {
+        console.error('Failed to start question generation:', error);
+        const game = activeGames.get(gameCode);
+        if (game) {
+            game.status = 'error';
+        }
     });
 }
 
@@ -652,23 +820,21 @@ function runQuestionGeneration(gameCode) {
 app.post("/api/game/:gameCode/leave", (req, res) => {
     const { gameCode } = req.params;
     const { username } = req.body;
-    
     const game = activeGames.get(gameCode);
     if (!game) {
         return res.status(404).json({ error: "Game not found" });
     }
-
-    // If host is leaving, set players to empty array
+    // If host is leaving, set players to empty array and delete the game
     if (game.host === username) {
         console.log(`Host ${username} left game ${gameCode}. Setting players to empty.`);
         game.players = [];
+        activeGames.delete(gameCode);
         return res.json({ 
             message: "Host left",
             wasHost: true,
             hostLeft: true
         });
     }
-
     // Otherwise, just remove the player
     game.players = game.players.filter(player => player.name !== username);
     console.log(`Player ${username} left game ${gameCode}. Remaining players:`, game.players);
@@ -687,9 +853,11 @@ function cleanupInactiveGames() {
     const MAX_ACTIVE_GAMES = 100; // Maximum number of active games
 
     for (const [gameCode, game] of activeGames.entries()) {
-        // Remove games that haven't had activity in 30 minutes
         if (now - game.lastActivity > INACTIVE_TIMEOUT) {
-            console.log(`Cleaning up inactive game: ${gameCode}`);
+            log(logLevels.INFO, 'Cleaning up inactive game', { 
+                gameCode,
+                lastActivity: new Date(game.lastActivity).toISOString()
+            });
             activeGames.delete(gameCode);
             if (gameConnections.has(gameCode)) {
                 gameConnections.delete(gameCode);
@@ -697,14 +865,17 @@ function cleanupInactiveGames() {
         }
     }
 
-    // If we have too many games, remove the oldest ones
     if (activeGames.size > MAX_ACTIVE_GAMES) {
         const gamesToRemove = Array.from(activeGames.entries())
             .sort((a, b) => a[1].lastActivity - b[1].lastActivity)
             .slice(0, activeGames.size - MAX_ACTIVE_GAMES);
 
         for (const [gameCode, _] of gamesToRemove) {
-            console.log(`Removing excess game: ${gameCode}`);
+            log(logLevels.INFO, 'Removing excess game', { 
+                gameCode,
+                totalGames: activeGames.size,
+                maxGames: MAX_ACTIVE_GAMES
+            });
             activeGames.delete(gameCode);
             if (gameConnections.has(gameCode)) {
                 gameConnections.delete(gameCode);

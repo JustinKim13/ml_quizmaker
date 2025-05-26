@@ -65,26 +65,42 @@ const Lobby = ({ gameData, startGame, onBack }) => {
                 if (gameData.isHost) {
                     switch (data.status) {
                         case 'processing':
-                            setStatusMessage(data.message || 'Processing...');
-                            setProgress((prev) => (prev < 90 ? prev + 2 : prev));
+                        case 'pdf_extracted':
+                            setStatusMessage(
+                                (data.message || 'Processing...') +
+                                (typeof data.questions_generated === 'number' && typeof data.total_questions === 'number'
+                                    ? ` (${data.questions_generated}/${data.total_questions} questions generated)`
+                                    : '')
+                            );
+                            setProgress(
+                                data.progress !== undefined
+                                    ? data.progress
+                                    : (prev) => (prev < 95 ? prev + 2 : prev)
+                            );
                             break;
-                        case 'completed':
-                            const questionsResponse = await fetch('http://localhost:5000/api/questions');
-                            const questionsData = await questionsResponse.json();
-
-                            if (questionsData.questions && questionsData.questions.length > 0) {
-                                setQuestions(questionsData.questions);
-                                setIsProcessing(false);
-                                setStatusMessage('Questions ready!');
-                                setProgress(100);
-                            }
+                        case 'ready':
+                            // Fetch questions and show ready UI
+                            const fetchQuestions = async () => {
+                                const questionsResponse = await fetch('http://localhost:5000/api/questions');
+                                const questionsData = await questionsResponse.json();
+                                if (questionsData.questions && questionsData.questions.length > 0) {
+                                    setQuestions(questionsData.questions);
+                                    setIsProcessing(false);
+                                    setStatusMessage(`Questions ready! (${questionsData.questions.length} questions generated)`);
+                                    setProgress(100);
+                                } else {
+                                    setStatusMessage('Questions are ready, but none were found.');
+                                    setIsProcessing(false);
+                                }
+                            };
+                            fetchQuestions();
                             break;
                         case 'error':
-                            setStatusMessage(`Error: ${data.error}`);
+                            setStatusMessage(`Error: ${data.message || data.error}`);
                             setIsProcessing(false);
                             break;
                         default:
-                            setStatusMessage('Unknown status received. Please try again later.');
+                            setStatusMessage(data.message || 'Working...');
                             break;
                     }
                 } else {
@@ -253,7 +269,19 @@ const Lobby = ({ gameData, startGame, onBack }) => {
                         <div className="progress-bar">
                             <div className="progress-fill" style={{ width: `${progress}%` }}></div>
                         </div>
-                        <p className="status-message">{statusMessage}</p>
+                        {/* Show live question progress if available */}
+                        {gameData.isHost && (
+                            <>
+                                {statusMessage && <p className="status-message">{statusMessage}</p>}
+                                {/* Show question progress if available in the message */}
+                                {statusMessage.match(/\((\d+)\/(\d+) questions generated\)/) && (
+                                    <p className="question-progress">
+                                        {statusMessage.match(/\((\d+)\/(\d+) questions generated\)/)[1]} / {statusMessage.match(/\((\d+)\/(\d+) questions generated\)/)[2]} questions generated
+                                    </p>
+                                )}
+                            </>
+                        )}
+                        {!gameData.isHost && <p className="status-message">{statusMessage}</p>}
                     </div>
                 ) : questions ? (
                     <div className="questions-ready">

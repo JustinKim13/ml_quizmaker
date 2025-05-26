@@ -7,6 +7,26 @@ import datetime
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 import traceback
+import sys
+import logging
+from pathlib import Path
+import tempfile
+from s3_utils import (
+    list_files, download_file, upload_file,
+    write_json_to_s3, read_json_from_s3
+)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# S3 paths
+S3_PATHS = {
+    'UPLOADS': 'uploads/',
+    'QUESTIONS': 'questions/questions.json',
+    'STATUS': 'status/status.json',
+    'COMBINED_OUTPUT': 'outputs/combined_output.txt'
+}
 
 def extract_text_from_pdf(file_path):
     """Extracts text from a PDF file using PyPDF. Falls back to OCR for pages without text."""
@@ -58,14 +78,14 @@ def list_pdf_files(directory_path):
         print(f"Error accessing directory {directory_path}: {e}")
         return []
 
-def update_status(message):
-    """Updates the status file with current progress."""
-    with open("ml_models/models/status.json", "w", encoding="utf-8") as f:
-        json.dump({
-            "status": "processing",
-            "message": message,
-            "timestamp": str(datetime.datetime.now())
-        }, f)
+def update_status(status, message):
+    """Update the status file in S3"""
+    status_data = {
+        'status': status,
+        'message': message,
+        'timestamp': str(datetime.datetime.now())
+    }
+    write_json_to_s3(status_data, S3_PATHS['STATUS'])
 
 def combine_selected_pdfs(directory_path, output_file_path):
     try:
@@ -73,17 +93,17 @@ def combine_selected_pdfs(directory_path, output_file_path):
         abs_dir_path = os.path.abspath(directory_path)
         print(f"Looking for PDF files in: {abs_dir_path}")
         
-        update_status("Reading PDF files...")
+        update_status("processing", "Reading PDF files...")
         pdf_files = list_pdf_files(abs_dir_path)
         
         if not pdf_files:
             print(f"No PDF files found in {abs_dir_path}")
-            update_status("Error: No PDF files found")
+            update_status("error", "Error: No PDF files found")
             return False
 
         combined_text = []
         for file_name in pdf_files:
-            update_status(f"Processing {file_name[14:]}...")
+            update_status("processing", f"Processing {file_name[14:]}...")
             file_path = os.path.join(abs_dir_path, file_name)
             
             # Add a timeout mechanism
@@ -121,8 +141,56 @@ def combine_selected_pdfs(directory_path, output_file_path):
         traceback.print_exc()  # Print full traceback
         return False
 
+def main():
+    try:
+        # Update status to processing
+        update_status('processing', 'Starting PDF extraction...')
+
+        # Create temporary directory for processing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # List all PDF files in S3 uploads directory
+            pdf_files = list_files(S3_PATHS['UPLOADS'])
+            
+            if not pdf_files:
+                update_status('error', 'No PDF files found in uploads directory')
+                return
+
+            combined_text = []
+            
+            # Process each PDF file
+            for pdf_key in pdf_files:
+                # Download PDF to temporary directory
+                temp_pdf_path = os.path.join(temp_dir, os.path.basename(pdf_key))
+                if not download_file(pdf_key, temp_pdf_path):
+                    logger.error(f"Failed to download {pdf_key}")
+                    continue
+
+                # Extract text from PDF
+                text = extract_text_from_pdf(temp_pdf_path)
+                if text:
+                    combined_text.append(text)
+
+            if not combined_text:
+                update_status('error', 'Failed to extract text from any PDF files')
+                return
+
+            # Combine all extracted text
+            final_text = '\n\n'.join(combined_text)
+
+            # Upload combined text to S3
+            if not write_json_to_s3({'text': final_text}, S3_PATHS['COMBINED_OUTPUT']):
+                update_status('error', 'Failed to save combined text')
+                return
+
+            # Initialize empty questions file
+            write_json_to_s3({'questions': []}, S3_PATHS['QUESTIONS'])
+
+            # Update status to completed
+            update_status('pdf_extracted', 'PDF extraction completed successfully')
+
+    except Exception as e:
+        logger.error(f"Error in main process: {str(e)}")
+        update_status('error', f'Error: {str(e)}')
+
 if __name__ == "__main__":
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    input_dir = "ml_models/data_preprocessing/pdf_files"
-    output_file = os.path.join(base_dir, "ml_models/outputs/combined_output.txt")
-    combine_selected_pdfs(input_dir, output_file)
+    main()
