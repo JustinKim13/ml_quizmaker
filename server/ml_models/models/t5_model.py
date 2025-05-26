@@ -39,10 +39,9 @@ def get_model(model_name: str):
             )
     return MODEL_CACHE[model_name]
 
-def update_status(status_file: str, status_data: Dict):
-    """Update status file with current state."""
-    with open(status_file, "w", encoding="utf-8") as f:
-        json.dump({**status_data, "timestamp": str(datetime.datetime.now())}, f)
+def update_status(status_data: Dict):
+    """Update status file in S3 with current state."""
+    write_json_to_s3({**status_data, "timestamp": str(datetime.datetime.now())}, 'status/status.json')
 
 def clean_context(context: str) -> str:
     """Clean the input context."""
@@ -231,7 +230,7 @@ def main():
         logger = logging.getLogger(__name__)
         
         logger.info("Starting question generation process")
-        update_status(paths['status'], {
+        update_status({
             "status": "processing", 
             "message": "Loading models...",
             "progress": 0,
@@ -268,7 +267,7 @@ def main():
             'qa_pipeline': qa_pipeline
         }
 
-        update_status(paths['status'], {
+        update_status({
             "status": "processing", 
             "message": "Processing text chunks...",
             "progress": 10,
@@ -284,7 +283,7 @@ def main():
         with open(paths['chunks'], "w", encoding="utf-8") as f:
             json.dump(chunks[:50], f)  # Save first 50 chunks to avoid huge files
 
-        update_status(paths['status'], {
+        update_status({
             "status": "processing", 
             "message": "Starting question generation...",
             "progress": 20,
@@ -312,7 +311,7 @@ def main():
                     
                     # Update status after each successful question
                     progress = min(100, 20 + (len(qa_pairs) / args.num_questions * 70))  # 20-90% range for question generation
-                    update_status(paths['status'], {
+                    update_status({
                         "status": "processing", 
                         "message": f"Generated {len(qa_pairs)} of {args.num_questions} questions...",
                         "progress": int(progress),
@@ -339,7 +338,7 @@ def main():
             torch.cuda.empty_cache()
         gc.collect()
 
-        update_status(paths['status'], {
+        update_status({
             "status": "completed",
             "message": f"Successfully generated {len(qa_pairs)} questions",
             "progress": 100,
@@ -351,7 +350,7 @@ def main():
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
         traceback.print_exc()  # Print full traceback for debugging
-        update_status(paths['status'], {
+        update_status({
             "status": "error",
             "message": f"Error: {str(e)}",
             "progress": 0,

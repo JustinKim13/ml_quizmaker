@@ -143,7 +143,7 @@ def combine_selected_pdfs(directory_path, output_file_path):
 
 def main():
     try:
-        # Update status to processing
+        # Update status to processing at the very start
         update_status('processing', 'Starting PDF extraction...')
 
         # Create temporary directory for processing

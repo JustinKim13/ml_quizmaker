@@ -2,9 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import '../styles/GamePlay.css';
 import GameOver from './GameOver';
 
-// how much time we give players to answer each question
-const timePerQuestion = 30
-
 function GamePlay({ questions, onFinish, gameData }) {
     const [currentQuestion, setCurrentQuestion] = useState(0); // state for our current questions and answers to ask
     const [showAnswer, setShowAnswer] = useState(false); // state to determine when and how long to show answer
@@ -12,7 +9,7 @@ function GamePlay({ questions, onFinish, gameData }) {
     const [ws, setWs] = useState(null);
     const [playerScores, setPlayerScores] = useState({});
     const selectedAnswerRef = useRef(null);
-    const [timeLeft, setTimeLeft] = useState(timePerQuestion);  // time per question
+    const [timeLeft, setTimeLeft] = useState(gameData.timePerQuestion);  // time per question
     const [uiSelectedAnswer, setUiSelectedAnswer] = useState(null); // allws us to immediately update the ui of selected answer instead of waiting to re-render state
     const [playerCount, setPlayerCount] = useState(0) ;
     const [playersAnswered, setPlayersAnswered] = useState(0);

@@ -372,6 +372,7 @@ wss.on('connection', (ws) => {
                         game.questions = questionsData.questions;
 
                         game.currentQuestion = 0;
+                        game.timeLeft = game.timePerQuestion; // Ensure timer uses user-selected value for first question
                         startGameTimer(data.gameCode);
                         // broadcast game started with proper JSON serialization
                         broadcastToGame(data.gameCode, {

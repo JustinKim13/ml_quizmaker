@@ -65,19 +65,24 @@ const Lobby = ({ gameData, startGame, onBack }) => {
                 if (gameData.isHost) {
                     switch (data.status) {
                         case 'processing':
-                        case 'pdf_extracted':
-                            setStatusMessage(
-                                (data.message || 'Processing...') +
-                                (typeof data.questions_generated === 'number' && typeof data.total_questions === 'number'
-                                    ? ` (${data.questions_generated}/${data.total_questions} questions generated)`
-                                    : '')
-                            );
+                        case 'pdf_extracted': {
+                            // Custom status message logic
+                            if (typeof data.questions_generated === 'number' && typeof data.total_questions === 'number') {
+                                if (data.questions_generated === 0) {
+                                    setStatusMessage('Loading models...');
+                                } else {
+                                    setStatusMessage(`Generated ${data.questions_generated} of ${data.total_questions} questions...`);
+                                }
+                            } else {
+                                setStatusMessage(data.message || 'Processing...');
+                            }
                             setProgress(
                                 data.progress !== undefined
                                     ? data.progress
                                     : (prev) => (prev < 95 ? prev + 2 : prev)
                             );
                             break;
+                        }
                         case 'ready':
                             // Fetch questions and show ready UI
                             const fetchQuestions = async () => {
@@ -273,12 +278,6 @@ const Lobby = ({ gameData, startGame, onBack }) => {
                         {gameData.isHost && (
                             <>
                                 {statusMessage && <p className="status-message">{statusMessage}</p>}
-                                {/* Show question progress if available in the message */}
-                                {statusMessage.match(/\((\d+)\/(\d+) questions generated\)/) && (
-                                    <p className="question-progress">
-                                        {statusMessage.match(/\((\d+)\/(\d+) questions generated\)/)[1]} / {statusMessage.match(/\((\d+)\/(\d+) questions generated\)/)[2]} questions generated
-                                    </p>
-                                )}
                             </>
                         )}
                         {!gameData.isHost && <p className="status-message">{statusMessage}</p>}
