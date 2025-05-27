@@ -35,19 +35,20 @@ const JoinGame = ({ username, onJoin, onBack }) => {
                 }),
             });
 
-            if (!response.ok) { // throw error if response doesn't work
-                throw new Error('Game not found');
+            const data = await response.json(); // get response data regardless of status
+
+            if (!response.ok) { // if response is not ok, throw error with server's message
+                throw new Error(data.error || 'Failed to join game');
             }
 
-            const data = await response.json(); // after our post request processes, get our data from response json object
             onJoin({
                 gameCode: code || gameCode, 
                 playerName: username,
                 isHost: false, // when joining, isHost is always going to be false
                 players: data.players // update list of players from data
             });
-        } catch (err) { // set error state accordingly
-            setError('Game not found. Please check the code and try again.');
+        } catch (err) { // set error state with the error message
+            setError(err.message || 'Failed to join game. Please try again.');
         }
     };
 
@@ -78,13 +79,13 @@ const JoinGame = ({ username, onJoin, onBack }) => {
                             }}
                             placeholder="ENTER CODE"
                         />
+                        {error && <div className="error-message" style={{position: 'static'}}>{error}</div>}
                         <button 
                             className="join-button" 
                             onClick={() => handleJoin()}
                         >
                             Join Game
                         </button>
-                        {error && <div className="error-message">{error}</div>}
                     </div>
 
                     {/* Available games list */}
