@@ -109,6 +109,23 @@ app.post("/api/upload", async (req, res) => {
             );
             await Promise.all(uploadPromises);
 
+            // Clear combined output in S3
+            await s3Utils.deleteFile(S3_PATHS.COMBINED_OUTPUT);
+            
+            // Reset status file to ensure clean start
+            const statusData = {
+                status: 'processing',
+                message: 'Starting game creation...',
+                progress: 0,
+                total_questions: numQuestions,
+                questions_generated: 0,
+                timestamp: new Date().toISOString()
+            };
+            await s3Utils.uploadFile(
+                { buffer: Buffer.from(JSON.stringify(statusData)), mimetype: 'application/json' },
+                S3_PATHS.STATUS
+            );
+
             // Initialize game data
             const gameData = {
                 players: [{ name: username, isHost: true }],
@@ -125,9 +142,6 @@ app.post("/api/upload", async (req, res) => {
             };
 
             await gameState.setGame(gameCode, gameData);
-
-            // Clear combined output in S3
-            await s3Utils.deleteFile(S3_PATHS.COMBINED_OUTPUT);
 
             // Run PDF extraction script
             const extractScript = path.join(__dirname, 'ml_models/data_preprocessing/extract_text_pdf.py');
@@ -377,7 +391,9 @@ wss.on('connection', (ws) => {
                         // broadcast game started with proper JSON serialization
                         broadcastToGame(data.gameCode, {
                             type: 'game_started',
-                            questions: game.questions
+                            questions: game.questions,
+                            timeLeft: game.timeLeft,
+                            timePerQuestion: game.timePerQuestion
                         });
                     }
                     break;

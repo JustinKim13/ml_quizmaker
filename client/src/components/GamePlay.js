@@ -92,6 +92,10 @@ function GamePlay({ questions, onFinish, gameData }) {
             if (data.type === 'game_completed') {
                 setGameCompleted(true);
             }      
+
+            if (data.type === 'game_started') {
+                setTimeLeft(data.timeLeft || data.timePerQuestion || gameData.timePerQuestion);
+            }
         };
 
         setWs(websocket);
