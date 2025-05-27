@@ -64,26 +64,13 @@ const Lobby = ({ gameData, startGame, onBack }) => {
 
                 if (gameData.isHost) {
                     switch (data.status) {
-                        case 'processing':
-                        case 'pdf_extracted': {
-                            // Custom status message logic
-                            if (typeof data.questions_generated === 'number' && typeof data.total_questions === 'number') {
-                                if (data.questions_generated === 0) {
-                                    setStatusMessage('Loading models...');
-                                } else {
-                                    setStatusMessage(`Generated ${data.questions_generated} of ${data.total_questions} questions...`);
-                                }
-                            } else {
-                                setStatusMessage(data.message || 'Processing...');
-                            }
-                            setProgress(
-                                data.progress !== undefined
-                                    ? data.progress
-                                    : (prev) => (prev < 95 ? prev + 2 : prev)
-                            );
+                        case 'processing': {
+                            // Use the message and progress directly from the server
+                            setStatusMessage(data.message || 'Processing...');
+                            setProgress(data.progress || 0);
                             break;
                         }
-                        case 'ready':
+                        case 'ready': {
                             // Fetch questions and show ready UI
                             const fetchQuestions = async () => {
                                 const questionsResponse = await fetch('http://localhost:5000/api/questions');
@@ -100,13 +87,16 @@ const Lobby = ({ gameData, startGame, onBack }) => {
                             };
                             fetchQuestions();
                             break;
-                        case 'error':
+                        }
+                        case 'error': {
                             setStatusMessage(`Error: ${data.message || data.error}`);
                             setIsProcessing(false);
                             break;
-                        default:
+                        }
+                        default: {
                             setStatusMessage(data.message || 'Working...');
                             break;
+                        }
                     }
                 } else {
                     setStatusMessage('Waiting for host to start the game...');

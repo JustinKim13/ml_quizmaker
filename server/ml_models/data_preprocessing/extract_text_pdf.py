@@ -78,13 +78,15 @@ def list_pdf_files(directory_path):
         print(f"Error accessing directory {directory_path}: {e}")
         return []
 
-def update_status(status, message):
+def update_status(status, message, progress=None):
     """Update the status file in S3"""
     status_data = {
         'status': status,
         'message': message,
         'timestamp': str(datetime.datetime.now())
     }
+    if progress is not None:
+        status_data['progress'] = progress
     write_json_to_s3(status_data, S3_PATHS['STATUS'])
 
 def combine_selected_pdfs(directory_path, output_file_path):
@@ -93,17 +95,17 @@ def combine_selected_pdfs(directory_path, output_file_path):
         abs_dir_path = os.path.abspath(directory_path)
         print(f"Looking for PDF files in: {abs_dir_path}")
         
-        update_status("processing", "Reading PDF files...")
+        update_status("processing", "Reading PDF files...", 10)
         pdf_files = list_pdf_files(abs_dir_path)
         
         if not pdf_files:
             print(f"No PDF files found in {abs_dir_path}")
-            update_status("error", "Error: No PDF files found")
+            update_status("error", "Error: No PDF files found", 10)
             return False
 
         combined_text = []
         for file_name in pdf_files:
-            update_status("processing", f"Processing {file_name[14:]}...")
+            update_status("processing", f"Processing {file_name[14:]}...", 20)
             file_path = os.path.join(abs_dir_path, file_name)
             
             # Add a timeout mechanism
@@ -144,7 +146,7 @@ def combine_selected_pdfs(directory_path, output_file_path):
 def main():
     try:
         # Update status to processing at the very start
-        update_status('processing', 'Starting PDF extraction...')
+        update_status('processing', 'Starting PDF extraction...', 10)
 
         # Create temporary directory for processing
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -152,13 +154,17 @@ def main():
             pdf_files = list_files(S3_PATHS['UPLOADS'])
             
             if not pdf_files:
-                update_status('error', 'No PDF files found in uploads directory')
+                update_status('error', 'No PDF files found in uploads directory', 10)
                 return
 
             combined_text = []
+            total_files = len(pdf_files)
             
             # Process each PDF file
-            for pdf_key in pdf_files:
+            for i, pdf_key in enumerate(pdf_files):
+                # Calculate progress: 10-20% range for PDF extraction
+                progress = 10 + (i / total_files * 10)
+                
                 # Download PDF to temporary directory
                 temp_pdf_path = os.path.join(temp_dir, os.path.basename(pdf_key))
                 if not download_file(pdf_key, temp_pdf_path):
@@ -169,9 +175,10 @@ def main():
                 text = extract_text_from_pdf(temp_pdf_path)
                 if text:
                     combined_text.append(text)
+                    update_status('processing', f'Processing PDF {i+1}/{total_files}...', int(progress))
 
             if not combined_text:
-                update_status('error', 'Failed to extract text from any PDF files')
+                update_status('error', 'Failed to extract text from any PDF files', 10)
                 return
 
             # Combine all extracted text
@@ -179,14 +186,14 @@ def main():
 
             # Upload combined text to S3
             if not write_json_to_s3({'text': final_text}, S3_PATHS['COMBINED_OUTPUT']):
-                update_status('error', 'Failed to save combined text')
+                update_status('error', 'Failed to save combined text', 10)
                 return
 
             # Initialize empty questions file
             write_json_to_s3({'questions': []}, S3_PATHS['QUESTIONS'])
 
             # Update status to completed
-            update_status('pdf_extracted', 'PDF extraction completed successfully')
+            update_status('pdf_extracted', 'PDF extraction completed successfully', 20)
 
     except Exception as e:
         logger.error(f"Error in main process: {str(e)}")

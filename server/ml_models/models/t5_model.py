@@ -13,6 +13,7 @@ import traceback
 import logging
 import sys
 import os
+import requests
 sys.path.append(os.path.join(os.path.dirname(__file__), '../data_preprocessing'))
 from s3_utils import write_json_to_s3, read_json_from_s3
 
@@ -53,14 +54,15 @@ def update_status(status_data: Dict):
 def check_game_status(game_code: str) -> bool:
     """Check if game still exists and is active."""
     try:
-        status_file = read_json_from_s3('status/status.json')
-        if not status_file:
+        # Try to get the game from active games
+        response = requests.get(f'http://localhost:5000/api/game/{game_code}/status')
+        if not response.ok:
             logger.info(f"Game {game_code} no longer exists, stopping question generation")
             return False
             
-        # Check if the game status indicates it's still active
-        if status_file.get('status') == 'error' or status_file.get('status') == 'completed':
-            logger.info(f"Game {game_code} is no longer active (status: {status_file.get('status')}), stopping question generation")
+        game_data = response.json()
+        if not game_data or game_data.get('status') == 'error' or game_data.get('status') == 'completed':
+            logger.info(f"Game {game_code} is no longer active (status: {game_data.get('status')}), stopping question generation")
             return False
             
         return True
@@ -254,23 +256,16 @@ def main():
         logging.basicConfig(level=logging.DEBUG)
         logger = logging.getLogger(__name__)
         
-        # Clear any existing status before starting
+        # Initial status update
         update_status({
             "status": "processing", 
             "message": "Starting question generation...",
-            "progress": 0,
+            "progress": 20,  # Start from 20% since PDF extraction is done
             "total_questions": args.num_questions,
             "questions_generated": 0
         })
         
         logger.info("Starting question generation process")
-        update_status({
-            "status": "processing", 
-            "message": "Loading models...",
-            "progress": 0,
-            "total_questions": args.num_questions,
-            "questions_generated": 0
-        })
 
         # Load models with CUDA optimization
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -303,8 +298,8 @@ def main():
 
         update_status({
             "status": "processing", 
-            "message": "Processing text chunks...",
-            "progress": 10,
+            "message": "Processing text...",
+            "progress": 30,  # Move to 30% after models are loaded
             "total_questions": args.num_questions,
             "questions_generated": 0
         })
@@ -316,14 +311,6 @@ def main():
         # Save chunks for debugging
         with open(paths['chunks'], "w", encoding="utf-8") as f:
             json.dump(chunks[:50], f)  # Save first 50 chunks to avoid huge files
-
-        update_status({
-            "status": "processing", 
-            "message": "Starting question generation...",
-            "progress": 20,
-            "total_questions": args.num_questions,
-            "questions_generated": 0
-        })
 
         qa_pairs = []
         random.shuffle(chunks)  # Randomize to get diverse questions
@@ -348,7 +335,7 @@ def main():
                     logger.info(f"Created multiple choice question {len(qa_pairs)} of {args.num_questions}")
                     
                     # Update status after each successful question
-                    progress = min(100, 20 + (len(qa_pairs) / args.num_questions * 70))  # 20-90% range for question generation
+                    progress = min(100, 30 + (len(qa_pairs) / args.num_questions * 70))  # 30-100% range for question generation
                     update_status({
                         "status": "processing", 
                         "message": f"Generated {len(qa_pairs)} of {args.num_questions} questions...",
