@@ -91,6 +91,11 @@ app.post("/api/upload", async (req, res) => {
         }
         await clearDirectory(S3_PATHS.UPLOADS);
         
+        // Clear all S3 files to ensure clean start
+        await s3Utils.deleteFile(S3_PATHS.QUESTIONS);
+        await s3Utils.deleteFile(S3_PATHS.COMBINED_OUTPUT);
+        await s3Utils.deleteFile(S3_PATHS.STATUS);
+        
         upload.array("files")(req, res, async (err) => {
             if (err) {
                 log(logLevels.ERROR, 'Upload error', { error: err.message });
@@ -109,9 +114,6 @@ app.post("/api/upload", async (req, res) => {
             );
             await Promise.all(uploadPromises);
 
-            // Clear combined output in S3
-            await s3Utils.deleteFile(S3_PATHS.COMBINED_OUTPUT);
-            
             // Reset status file to ensure clean start
             const statusData = {
                 status: 'processing',
