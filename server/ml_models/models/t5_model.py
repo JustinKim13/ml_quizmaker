@@ -14,7 +14,7 @@ import logging
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../data_preprocessing'))
-from s3_utils import write_json_to_s3
+from s3_utils import write_json_to_s3, read_json_from_s3
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -41,7 +41,32 @@ def get_model(model_name: str):
 
 def update_status(status_data: Dict):
     """Update status file in S3 with current state."""
-    write_json_to_s3({**status_data, "timestamp": str(datetime.datetime.now())}, 'status/status.json')
+    try:
+        # Always include timestamp
+        status_data = {**status_data, "timestamp": str(datetime.datetime.now())}
+        # Use the same path as the server
+        write_json_to_s3(status_data, 'status/status.json')
+    except Exception as e:
+        logger.error(f"Failed to update status: {str(e)}")
+        raise
+
+def check_game_status(game_code: str) -> bool:
+    """Check if game still exists and is active."""
+    try:
+        status_file = read_json_from_s3('status/status.json')
+        if not status_file:
+            logger.info(f"Game {game_code} no longer exists, stopping question generation")
+            return False
+            
+        # Check if the game status indicates it's still active
+        if status_file.get('status') == 'error' or status_file.get('status') == 'completed':
+            logger.info(f"Game {game_code} is no longer active (status: {status_file.get('status')}), stopping question generation")
+            return False
+            
+        return True
+    except Exception as e:
+        logger.error(f"Error checking game status: {str(e)}")
+        return False
 
 def clean_context(context: str) -> str:
     """Clean the input context."""
@@ -215,19 +240,28 @@ def process_chunk(chunk: str, models: Dict) -> Dict:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--num_questions', type=int, default=10)
+    parser.add_argument('--game_code', type=str, required=True)
     args = parser.parse_args()
     
     paths = {
         'input': "ml_models/outputs/combined_output.txt",
         'chunks': "ml_models/data_preprocessing/tokenized_chunks.json",
-        'output': "ml_models/models/questions.json",
-        'status': "ml_models/models/status.json"
+        'output': "ml_models/models/questions.json"
     }
     
     try:
         # Set up logging
         logging.basicConfig(level=logging.DEBUG)
         logger = logging.getLogger(__name__)
+        
+        # Clear any existing status before starting
+        update_status({
+            "status": "processing", 
+            "message": "Starting question generation...",
+            "progress": 0,
+            "total_questions": args.num_questions,
+            "questions_generated": 0
+        })
         
         logger.info("Starting question generation process")
         update_status({
@@ -299,6 +333,10 @@ def main():
         logger.info(f"Processing up to {max_chunks_to_process} chunks to generate {args.num_questions} questions")
         
         for i, chunk in enumerate(chunks[:max_chunks_to_process]):
+            # Check if game still exists before processing each chunk
+            if not check_game_status(args.game_code):
+                return
+
             if len(qa_pairs) >= args.num_questions:
                 break
                 
