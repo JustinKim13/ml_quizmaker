@@ -15,17 +15,23 @@ from s3_utils import (
     list_files, download_file, upload_file,
     write_json_to_s3, read_json_from_s3
 )
+import argparse
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--game_code', type=str, required=True)
+args = parser.parse_args()
+game_code = args.game_code
+
 # S3 paths
 S3_PATHS = {
-    'UPLOADS': 'uploads/',
-    'QUESTIONS': 'questions/questions.json',
-    'STATUS': 'status/status.json',
-    'COMBINED_OUTPUT': 'outputs/combined_output.txt'
+    'UPLOADS': f'uploads/{game_code}/',
+    'QUESTIONS': f'questions/{game_code}/questions.json',
+    'STATUS': f'status/{game_code}/status.json',
+    'COMBINED_OUTPUT': f'outputs/{game_code}/combined_output.txt'
 }
 
 def extract_text_from_pdf(file_path):
@@ -143,58 +149,50 @@ def combine_selected_pdfs(directory_path, output_file_path):
         traceback.print_exc()  # Print full traceback
         return False
 
+def append_to_combined_output_s3(text, s3_path):
+    # Download existing combined_output.txt if it exists
+    temp_file = tempfile.NamedTemporaryFile(delete=False, mode='a+', encoding='utf-8')
+    temp_file.close()
+    if download_file(s3_path, temp_file.name):
+        with open(temp_file.name, 'a', encoding='utf-8') as f:
+            f.write('\n\n' + text)
+    else:
+        with open(temp_file.name, 'w', encoding='utf-8') as f:
+            f.write(text)
+    upload_file(temp_file.name, s3_path)
+    os.unlink(temp_file.name)
+
 def main():
     try:
         # Update status to processing at the very start
         update_status('processing', 'Starting PDF extraction...', 10)
 
-        # Create temporary directory for processing
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # List all PDF files in S3 uploads directory
-            pdf_files = list_files(S3_PATHS['UPLOADS'])
-            
-            if not pdf_files:
-                update_status('error', 'No PDF files found in uploads directory', 10)
-                return
+        # List all PDF files in S3 uploads directory
+        pdf_files = list_files(S3_PATHS['UPLOADS'])
+        if not pdf_files:
+            update_status('error', 'No PDF files found in uploads directory', 10)
+            return
 
-            combined_text = []
-            total_files = len(pdf_files)
-            
-            # Process each PDF file
-            for i, pdf_key in enumerate(pdf_files):
-                # Calculate progress: 10-20% range for PDF extraction
-                progress = 10 + (i / total_files * 10)
-                
-                # Download PDF to temporary directory
-                temp_pdf_path = os.path.join(temp_dir, os.path.basename(pdf_key))
-                if not download_file(pdf_key, temp_pdf_path):
-                    logger.error(f"Failed to download {pdf_key}")
-                    continue
+        total_files = len(pdf_files)
+        for i, pdf_key in enumerate(pdf_files):
+            progress = 10 + (i / total_files * 10)
+            # Download PDF to temp file
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_pdf:
+                temp_pdf_path = temp_pdf.name
+            if not download_file(pdf_key, temp_pdf_path):
+                logger.error(f"Failed to download {pdf_key}")
+                os.unlink(temp_pdf_path)
+                continue
+            # Extract text
+            text = extract_text_from_pdf(temp_pdf_path)
+            os.unlink(temp_pdf_path)
+            if text:
+                append_to_combined_output_s3(text, S3_PATHS['COMBINED_OUTPUT'])
+                update_status('processing', f'Processing PDF {i+1}/{total_files}...', int(progress))
 
-                # Extract text from PDF
-                text = extract_text_from_pdf(temp_pdf_path)
-                if text:
-                    combined_text.append(text)
-                    update_status('processing', f'Processing PDF {i+1}/{total_files}...', int(progress))
-
-            if not combined_text:
-                update_status('error', 'Failed to extract text from any PDF files', 10)
-                return
-
-            # Combine all extracted text
-            final_text = '\n\n'.join(combined_text)
-
-            # Upload combined text to S3
-            if not write_json_to_s3({'text': final_text}, S3_PATHS['COMBINED_OUTPUT']):
-                update_status('error', 'Failed to save combined text', 10)
-                return
-
-            # Initialize empty questions file
-            write_json_to_s3({'questions': []}, S3_PATHS['QUESTIONS'])
-
-            # Update status to completed
-            update_status('pdf_extracted', 'PDF extraction completed successfully', 20)
-
+        # Initialize empty questions file
+        write_json_to_s3({'questions': []}, S3_PATHS['QUESTIONS'])
+        update_status('pdf_extracted', 'PDF extraction completed successfully', 20)
     except Exception as e:
         logger.error(f"Error in main process: {str(e)}")
         update_status('error', f'Error: {str(e)}')

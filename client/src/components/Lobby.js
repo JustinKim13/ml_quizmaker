@@ -59,7 +59,7 @@ const Lobby = ({ gameData, startGame, onBack }) => {
 
         const checkStatus = async () => {
             try {
-                const response = await fetch('http://localhost:5000/api/status');
+                const response = await fetch(`http://localhost:5000/api/status?gameCode=${gameData.gameCode}`);
                 const data = await response.json();
 
                 if (gameData.isHost) {
@@ -73,7 +73,7 @@ const Lobby = ({ gameData, startGame, onBack }) => {
                         case 'ready': {
                             // Fetch questions and show ready UI
                             const fetchQuestions = async () => {
-                                const questionsResponse = await fetch('http://localhost:5000/api/questions');
+                                const questionsResponse = await fetch(`http://localhost:5000/api/questions?gameCode=${gameData.gameCode}`);
                                 const questionsData = await questionsResponse.json();
                                 if (questionsData.questions && questionsData.questions.length > 0) {
                                     setQuestions(questionsData.questions);
@@ -116,7 +116,7 @@ const Lobby = ({ gameData, startGame, onBack }) => {
                 clearInterval(pollInterval);
             }
         };
-    }, [isProcessing, gameData.isHost]);
+    }, [isProcessing, gameData.isHost, gameData.gameCode]);
 
     useEffect(() => {
         let pollInterval;

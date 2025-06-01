@@ -15,7 +15,7 @@ import sys
 import os
 import requests
 sys.path.append(os.path.join(os.path.dirname(__file__), '../data_preprocessing'))
-from s3_utils import write_json_to_s3, read_json_from_s3
+from s3_utils import write_json_to_s3, read_json_from_s3, download_file
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -40,13 +40,11 @@ def get_model(model_name: str):
             )
     return MODEL_CACHE[model_name]
 
-def update_status(status_data: Dict):
+def update_status(status_data, game_code):
     """Update status file in S3 with current state."""
     try:
-        # Always include timestamp
         status_data = {**status_data, "timestamp": str(datetime.datetime.now())}
-        # Use the same path as the server
-        write_json_to_s3(status_data, 'status/status.json')
+        write_json_to_s3(status_data, f'status/{game_code}/status.json')
     except Exception as e:
         logger.error(f"Failed to update status: {str(e)}")
         raise
@@ -241,16 +239,25 @@ def process_chunk(chunk: str, models: Dict) -> Dict:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--num_questions', type=int, default=10)
+    parser.add_argument('--num_questions', type=int, required=True)
     parser.add_argument('--game_code', type=str, required=True)
     args = parser.parse_args()
+    num_questions = args.num_questions
+    game_code = args.game_code
     
     paths = {
-        'input': "ml_models/outputs/combined_output.txt",
+        'input': f"ml_models/outputs/{game_code}/combined_output.txt",
         'chunks': "ml_models/data_preprocessing/tokenized_chunks.json",
-        'output': "ml_models/models/questions.json"
+        'output': f"ml_models/models/{game_code}/questions.json"
     }
-    
+
+    # Download combined_output.txt from S3 before reading
+    s3_key = f"outputs/{game_code}/combined_output.txt"
+    local_path = paths['input']
+    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+    if not download_file(s3_key, local_path):
+        raise FileNotFoundError(f"Could not download {s3_key} from S3. Transcript missing.")
+
     try:
         # Set up logging
         logging.basicConfig(level=logging.DEBUG)
@@ -261,9 +268,10 @@ def main():
             "status": "processing", 
             "message": "Starting question generation...",
             "progress": 20,  # Start from 20% since PDF extraction is done
-            "total_questions": args.num_questions,
-            "questions_generated": 0
-        })
+            "total_questions": num_questions,
+            "questions_generated": 0,
+            "timestamp": datetime.datetime.now().isoformat()
+        }, game_code)
         
         logger.info("Starting question generation process")
 
@@ -300,9 +308,9 @@ def main():
             "status": "processing", 
             "message": "Processing text...",
             "progress": 30,  # Move to 30% after models are loaded
-            "total_questions": args.num_questions,
+            "total_questions": num_questions,
             "questions_generated": 0
-        })
+        }, game_code)
         
         logger.info("Loading and tokenizing text...")
         chunks = load_and_tokenize_text(paths['input'])
@@ -317,14 +325,14 @@ def main():
         
         # Process more chunks to get more questions
         max_chunks_to_process = min(100, len(chunks))
-        logger.info(f"Processing up to {max_chunks_to_process} chunks to generate {args.num_questions} questions")
+        logger.info(f"Processing up to {max_chunks_to_process} chunks to generate {num_questions} questions")
         
         for i, chunk in enumerate(chunks[:max_chunks_to_process]):
             # Check if game still exists before processing each chunk
-            if not check_game_status(args.game_code):
+            if not check_game_status(game_code):
                 return
 
-            if len(qa_pairs) >= args.num_questions:
+            if len(qa_pairs) >= num_questions:
                 break
                 
             logger.info(f"Processing chunk {i+1}/{max_chunks_to_process}")
@@ -332,17 +340,17 @@ def main():
                 qa_pair = process_chunk(chunk, models)
                 if qa_pair:
                     qa_pairs.append(qa_pair)
-                    logger.info(f"Created multiple choice question {len(qa_pairs)} of {args.num_questions}")
+                    logger.info(f"Created multiple choice question {len(qa_pairs)} of {num_questions}")
                     
                     # Update status after each successful question
-                    progress = min(100, 30 + (len(qa_pairs) / args.num_questions * 70))  # 30-100% range for question generation
+                    progress = min(100, 30 + (len(qa_pairs) / num_questions * 70))  # 30-100% range for question generation
                     update_status({
                         "status": "processing", 
-                        "message": f"Generated {len(qa_pairs)} of {args.num_questions} questions...",
+                        "message": f"Generated {len(qa_pairs)} of {num_questions} questions...",
                         "progress": int(progress),
-                        "total_questions": args.num_questions,
+                        "total_questions": num_questions,
                         "questions_generated": len(qa_pairs)
-                    })
+                    }, game_code)
             except Exception as e:
                 logger.error(f"Failed to process chunk {i+1}: {str(e)}")
                 continue
@@ -352,11 +360,12 @@ def main():
 
         # Save questions with context to file
         logger.info(f"Saving {len(qa_pairs)} questions to {paths['output']}")
+        os.makedirs(os.path.dirname(paths['output']), exist_ok=True)
         with open(paths['output'], "w", encoding="utf-8") as f:
             json.dump({"questions": qa_pairs}, f, indent=2)
 
         # Upload questions to S3 so the backend can access them
-        write_json_to_s3({"questions": qa_pairs}, 'questions/questions.json')
+        write_json_to_s3({"questions": qa_pairs}, f'questions/{game_code}/questions.json')
 
         # Clear CUDA cache
         if torch.cuda.is_available():
@@ -367,9 +376,9 @@ def main():
             "status": "completed",
             "message": f"Successfully generated {len(qa_pairs)} questions",
             "progress": 100,
-            "total_questions": args.num_questions,
+            "total_questions": num_questions,
             "questions_generated": len(qa_pairs)
-        })
+        }, game_code)
         logger.info("Question generation completed successfully")
 
     except Exception as e:
@@ -379,9 +388,9 @@ def main():
             "status": "error",
             "message": f"Error: {str(e)}",
             "progress": 0,
-            "total_questions": args.num_questions,
+            "total_questions": num_questions,
             "questions_generated": 0
-        })
+        }, game_code)
         raise  # Re-raise the exception to ensure the process fails
 
 if __name__ == "__main__":

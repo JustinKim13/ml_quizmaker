@@ -53,12 +53,14 @@ const wsState = {
 };
 
 // Remove local file path constants and use S3 paths instead
-const S3_PATHS = {
-    QUESTIONS: 'questions/questions.json',
-    UPLOADS: 'uploads/',
-    STATUS: 'status/status.json',
-    COMBINED_OUTPUT: 'outputs/combined_output.txt'
-};
+function getS3Paths(gameCode) {
+    return {
+        QUESTIONS: `questions/${gameCode}/questions.json`,
+        UPLOADS: `uploads/${gameCode}/`,
+        STATUS: `status/${gameCode}/status.json`,
+        COMBINED_OUTPUT: `outputs/${gameCode}/combined_output.txt`
+    };
+}
 
 // Update storage configuration for multer to use memory storage
 const upload = multer({ 
@@ -89,12 +91,12 @@ app.post("/api/upload", async (req, res) => {
                 activeGames.delete(code);
             }
         }
-        await clearDirectory(S3_PATHS.UPLOADS);
+        await clearDirectory(getS3Paths(req.body.gameCode).UPLOADS);
         
         // Clear all S3 files to ensure clean start
-        await s3Utils.deleteFile(S3_PATHS.QUESTIONS);
-        await s3Utils.deleteFile(S3_PATHS.COMBINED_OUTPUT);
-        await s3Utils.deleteFile(S3_PATHS.STATUS);
+        await s3Utils.deleteFile(getS3Paths(req.body.gameCode).QUESTIONS);
+        await s3Utils.deleteFile(getS3Paths(req.body.gameCode).COMBINED_OUTPUT);
+        await s3Utils.deleteFile(getS3Paths(req.body.gameCode).STATUS);
         
         upload.array("files")(req, res, async (err) => {
             if (err) {
@@ -107,31 +109,11 @@ app.post("/api/upload", async (req, res) => {
             const isPrivate = req.body.isPrivate === 'true' || req.body.isPrivate === true;
             const timePerQuestion = parseInt(req.body.timePerQuestion) || 30;
             const numQuestions = parseInt(req.body.numQuestions) || 10;
+            const videoUrl = req.body.videoUrl;
 
-            // Upload files to S3
-            const uploadPromises = req.files.map(file => 
-                s3Utils.uploadFile(file, `${S3_PATHS.UPLOADS}${Date.now()}-${file.originalname}`)
-            );
-            await Promise.all(uploadPromises);
-
-            // Set initial status only once
-            const statusData = {
-                status: 'processing',
-                message: 'Starting PDF extraction...',
-                progress: 0,
-                total_questions: numQuestions,
-                questions_generated: 0,
-                timestamp: new Date().toISOString()
-            };
-            
-            await s3Utils.uploadFile(
-                { buffer: Buffer.from(JSON.stringify(statusData)), mimetype: 'application/json' },
-                S3_PATHS.STATUS
-            );
-
-            // Initialize game data
-            const gameData = {
-                players: [{ name: username, isHost: true }],
+            // Create new game
+            activeGames.set(gameCode, {
+                players: [{ name: username, score: 0, isHost: true }],
                 status: 'processing',
                 host: username,
                 isPrivate: isPrivate,
@@ -142,79 +124,105 @@ app.post("/api/upload", async (req, res) => {
                 timePerQuestion: timePerQuestion,
                 numQuestions: numQuestions,
                 lastActivity: Date.now()
-            };
-
-            await gameState.setGame(gameCode, gameData);
-
-            // Run PDF extraction script
-            const extractScript = path.join(__dirname, 'ml_models/data_preprocessing/extract_text_pdf.py');
-            const extractProcess = spawn('python3', [extractScript]);
-            
-            extractProcess.stdout.on('data', (data) => {
-                console.log('PDF Extraction:', data.toString());
-            }); 
-            
-            extractProcess.stderr.on('data', (data) => {
-                console.error('PDF Extraction Error:', data.toString());
             });
 
-            extractProcess.on('close', async (code) => {
-                console.log(`PDF extraction completed with code ${code}`);
+            // Set initial status
+            const statusData = {
+                status: 'processing',
+                message: 'Starting processing...',
+                progress: 0,
+                total_questions: numQuestions,
+                questions_generated: 0,
+                timestamp: new Date().toISOString()
+            };
+            await s3Utils.uploadFile(
+                { 
+                    buffer: Buffer.from(JSON.stringify(statusData)), 
+                    mimetype: 'application/json' 
+                },
+                getS3Paths(gameCode).STATUS
+            );
+
+            // Process files if any
+            if (req.files && req.files.length > 0) {
+                // Upload files to S3
+                const uploadPromises = req.files.map(file => 
+                    s3Utils.uploadFile(file, `${getS3Paths(gameCode).UPLOADS}${Date.now()}-${file.originalname}`)
+                );
+                await Promise.all(uploadPromises);
+
+                // Run PDF extraction
+                const extractScript = path.join(__dirname, 'ml_models/data_preprocessing/extract_text_pdf.py');
+                const extractProcess = spawn('python3', [extractScript, '--game_code', gameCode]);
                 
-                if (code === 0) {
-                    const videoUrl = req.body.videoUrl;
-                    if (videoUrl) {
-                        const videoProcess = spawn('python3', [path.join(__dirname, 'ml_models/data_preprocessing/extract_text_url.py')]);
-                        videoProcess.stdin.write(videoUrl + '\n');
-                        videoProcess.stdin.end();
+                extractProcess.stdout.on('data', (data) => {
+                    console.log('PDF Extraction:', data.toString());
+                }); 
+                
+                extractProcess.stderr.on('data', (data) => {
+                    console.error('PDF Extraction Error:', data.toString());
+                });
 
-                        videoProcess.stdout.on('data', (data) => {
-                            console.log('Video Processing:', data.toString());
-                        }); 
-                        
-                        videoProcess.stderr.on('data', (data) => {
-                            console.error('Video Processing Error:', data.toString());
-                        });
-
-                        videoProcess.on('close', async (videoCode) => {
-                            console.log(`Video processing completed with code ${videoCode}`);
-                            if (videoCode === 0) {
-                                const game = activeGames.get(gameCode);
-                                if (game) {
-                                    game.status = 'Generating questions...';
-                                    runQuestionGeneration(gameCode);
-                                }
+                extractProcess.on('close', async (code) => {
+                    console.log(`PDF extraction completed with code ${code}`);
+                    
+                    if (code === 0) {
+                        if (videoUrl) {
+                            // If we have both PDF and video, process video and append to existing text
+                            processVideo(videoUrl, gameCode, true);
+                        } else {
+                            const game = activeGames.get(gameCode);
+                            if (game) {
+                                game.status = 'Generating questions...';
+                                runQuestionGeneration(gameCode);
                             }
-                        });
+                        }
                     } else {
+                        console.error('PDF extraction failed with code:', code);
                         const game = activeGames.get(gameCode);
                         if (game) {
-                            game.status = 'Generating questions...';
-                            runQuestionGeneration(gameCode);
+                            game.status = 'error';
+                            await s3Utils.uploadFile(
+                                { 
+                                    buffer: Buffer.from(JSON.stringify({
+                                        status: 'error',
+                                        message: 'PDF extraction failed. Please try again.',
+                                        progress: 0,
+                                        total_questions: numQuestions,
+                                        questions_generated: 0,
+                                        timestamp: new Date().toISOString()
+                                    })), 
+                                    mimetype: 'application/json' 
+                                },
+                                getS3Paths(gameCode).STATUS
+                            );
                         }
                     }
-                } else {
-                    console.error('PDF extraction failed with code:', code);
-                    const game = activeGames.get(gameCode);
-                    if (game) {
-                        game.status = 'error';
-                        await s3Utils.uploadFile(
-                            { 
-                                buffer: Buffer.from(JSON.stringify({
-                                    status: 'error',
-                                    message: 'PDF extraction failed. Please try again.',
-                                    progress: 0,
-                                    total_questions: numQuestions,
-                                    questions_generated: 0,
-                                    timestamp: new Date().toISOString()
-                                })), 
-                                mimetype: 'application/json' 
-                            },
-                            S3_PATHS.STATUS
-                        );
-                    }
+                });
+            } else if (videoUrl) {
+                // If no files but video URL provided, process video directly
+                processVideo(videoUrl, gameCode, false);
+            } else {
+                // No files and no video URL
+                const game = activeGames.get(gameCode);
+                if (game) {
+                    game.status = 'error';
+                    await s3Utils.uploadFile(
+                        { 
+                            buffer: Buffer.from(JSON.stringify({
+                                status: 'error',
+                                message: 'Please provide either PDF files or a video URL.',
+                                progress: 0,
+                                total_questions: numQuestions,
+                                questions_generated: 0,
+                                timestamp: new Date().toISOString()
+                            })), 
+                            mimetype: 'application/json' 
+                        },
+                        getS3Paths(gameCode).STATUS
+                    );
                 }
-            });
+            }
 
             console.log("Active games:", Array.from(activeGames.entries()));
             
@@ -234,19 +242,23 @@ app.post("/api/upload", async (req, res) => {
 // Update status endpoint
 app.get("/api/status", async (req, res) => {
     try {
-        const statusFile = await s3Utils.getFile(S3_PATHS.STATUS);
         let status = null;
-        if (statusFile) {
-            try {
+        try {
+            const statusFile = await s3Utils.getFile(getS3Paths(req.query.gameCode).STATUS);
+            if (statusFile) {
                 status = JSON.parse(statusFile);
-            } catch (parseError) {
-                log(logLevels.ERROR, 'Error parsing status file', { error: parseError.message });
-                return res.status(200).json({ 
-                    questionsGenerated: false,
-                    status: 'error',
-                    message: 'Error parsing status file'
-                });
             }
+        } catch (err) {
+            // If the file does not exist, treat as processing
+            return res.status(200).json({
+                questionsGenerated: false,
+                status: 'processing',
+                message: 'Processing has started...',
+                progress: 0,
+                total_questions: 0,
+                questions_generated: 0,
+                timestamp: new Date().toISOString()
+            });
         }
 
         // Check if any game is ready (for this session, just check all active games)
@@ -299,9 +311,9 @@ app.get("/api/status", async (req, res) => {
 // Update questions endpoint
 app.get("/api/questions", async (req, res) => {
     try {
-        log(logLevels.INFO, 'Reading questions from S3', { path: S3_PATHS.QUESTIONS });
+        log(logLevels.INFO, 'Reading questions from S3', { path: getS3Paths(req.query.gameCode).QUESTIONS });
         
-        const questionsFile = await s3Utils.getFile(S3_PATHS.QUESTIONS);
+        const questionsFile = await s3Utils.getFile(getS3Paths(req.query.gameCode).QUESTIONS);
         const questionsData = JSON.parse(questionsFile.toString());
         
         log(logLevels.INFO, 'Sending questions data', { questionCount: questionsData.questions?.length });
@@ -392,7 +404,8 @@ wss.on('connection', (ws) => {
                     console.log(`Starting game ${data.gameCode}`);
                     const game = activeGames.get(data.gameCode);
                     if (game) {
-                        const questionsResponse = await fetch("http://localhost:5000/api/questions");
+                        // Fetch questions with the correct gameCode
+                        const questionsResponse = await fetch(`http://localhost:5000/api/questions?gameCode=${data.gameCode}`);
                         const questionsData = await questionsResponse.json();
                         game.questions = questionsData.questions;
 
@@ -750,8 +763,9 @@ app.get("/api/game/:gameCode/players", (req, res) => {
 
 // Add this endpoint to start the game
 app.post("/api/game/:gameCode/start", async (req, res) => {
-    // This endpoint includes questions in the broadcast
-    const questionsResponse = await fetch("http://localhost:5000/api/questions");
+    const { gameCode } = req.params;
+    // Fetch questions with the correct gameCode
+    const questionsResponse = await fetch(`http://localhost:5000/api/questions?gameCode=${gameCode}`);
     const questionsData = await questionsResponse.json();
     
     broadcastToGame(gameCode, {
@@ -786,7 +800,7 @@ function runQuestionGeneration(gameCode) {
     // Write initial status and wait for it to complete
     s3Utils.uploadFile(
         { buffer: Buffer.from(JSON.stringify(initialStatus)), mimetype: 'application/json' },
-        S3_PATHS.STATUS
+        getS3Paths(gameCode).STATUS
     )
     .then(() => {
         // Add a longer delay to ensure S3 consistency
@@ -832,7 +846,7 @@ function runQuestionGeneration(gameCode) {
                 
                 // Try to load questions from S3
                 try {
-                    const questionsFile = await s3Utils.getFile(S3_PATHS.QUESTIONS);
+                    const questionsFile = await s3Utils.getFile(getS3Paths(gameCode).QUESTIONS);
                     const questionsData = JSON.parse(questionsFile);
                     if (questionsData.questions && questionsData.questions.length > 0) {
                         game.questions = questionsData.questions;
@@ -854,7 +868,7 @@ function runQuestionGeneration(gameCode) {
                     // Add a retry with delay
                     await new Promise(resolve => setTimeout(resolve, 2000));
                     try {
-                        const questionsFile = await s3Utils.getFile(S3_PATHS.QUESTIONS);
+                        const questionsFile = await s3Utils.getFile(getS3Paths(gameCode).QUESTIONS);
                         const questionsData = JSON.parse(questionsFile);
                         if (questionsData.questions && questionsData.questions.length > 0) {
                             game.questions = questionsData.questions;
@@ -929,9 +943,9 @@ app.post("/api/game/:gameCode/leave", async (req, res) => {
         // If host left or no players left, clean up the game
         if (game.host === username || game.players.length === 0) {
             // Clear questions and status
-            await s3Utils.deleteFile(S3_PATHS.QUESTIONS);
-            await s3Utils.deleteFile(S3_PATHS.STATUS);
-            await s3Utils.deleteFile(S3_PATHS.COMBINED_OUTPUT);
+            await s3Utils.deleteFile(getS3Paths(gameCode).QUESTIONS);
+            await s3Utils.deleteFile(getS3Paths(gameCode).STATUS);
+            await s3Utils.deleteFile(getS3Paths(gameCode).COMBINED_OUTPUT);
             
             // Remove game from active games
             activeGames.delete(gameCode);
@@ -1016,6 +1030,128 @@ app.get("/api/game/:gameCode/status", async (req, res) => {
         res.status(500).json({ error: "Failed to check game status" });
     }
 });
+
+// Add this helper function for video processing
+async function processVideo(videoUrl, gameCode, isAppending = false) {
+    console.log(`Starting video processing for URL: ${videoUrl}`);
+    
+    try {
+        // Only clear files if we're not appending
+        if (!isAppending) {
+            await clearDirectory(getS3Paths(gameCode).UPLOADS);
+            await s3Utils.deleteFile(getS3Paths(gameCode).QUESTIONS);
+            await s3Utils.deleteFile(getS3Paths(gameCode).COMBINED_OUTPUT);
+        }
+        
+        // Get the full path to Python
+        const pythonPath = process.platform === 'win32' ? 'python' : 'python3';
+        console.log(`Using Python path: ${pythonPath}`);
+        
+        const scriptPath = path.join(__dirname, 'ml_models/data_preprocessing/extract_text_url.py');
+        console.log(`Script path: ${scriptPath}`);
+        
+        // Pass --game_code and --append flag to the script
+        const videoProcess = spawn(pythonPath, [scriptPath, '--game_code', gameCode, '--append', isAppending.toString()]);
+        
+        let stdoutData = '';
+        let stderrData = '';
+        
+        videoProcess.stdout.on('data', (data) => {
+            const output = data.toString();
+            stdoutData += output;
+            console.log('Video Processing:', output);
+        }); 
+        
+        videoProcess.stderr.on('data', (data) => {
+            const error = data.toString();
+            stderrData += error;
+            // Only log, do not treat as fatal error here!
+            // Many Python libs log to stderr even for non-fatal info
+            console.error('Video Processing Log:', error);
+        });
+
+        videoProcess.on('error', (error) => {
+            console.error('Failed to start video processing:', error);
+            const game = activeGames.get(gameCode);
+            if (game) {
+                game.status = 'error';
+                s3Utils.uploadFile(
+                    { 
+                        buffer: Buffer.from(JSON.stringify({
+                            status: 'error',
+                            message: `Failed to start video processing: ${error.message}. Please try again.`,
+                            progress: 0,
+                            total_questions: game.numQuestions,
+                            questions_generated: 0,
+                            timestamp: new Date().toISOString()
+                        })), 
+                        mimetype: 'application/json' 
+                    },
+                    getS3Paths(gameCode).STATUS
+                );
+            }
+        });
+
+        videoProcess.on('close', async (videoCode) => {
+            console.log(`Video processing completed with code ${videoCode}`);
+            console.log('Video processing stdout:', stdoutData);
+            console.log('Video processing stderr:', stderrData);
+            
+            if (videoCode === 0) {
+                // Success: continue to question generation
+                const game = activeGames.get(gameCode);
+                if (game) {
+                    game.status = 'Generating questions...';
+                    runQuestionGeneration(gameCode);
+                }
+            } else {
+                // Only here, treat as error
+                const game = activeGames.get(gameCode);
+                if (game) {
+                    game.status = 'error';
+                    await s3Utils.uploadFile(
+                        { 
+                            buffer: Buffer.from(JSON.stringify({
+                                status: 'error',
+                                message: `Video processing failed: ${stderrData || 'Unknown error'}. Please try again.`,
+                                progress: 0,
+                                total_questions: game.numQuestions,
+                                questions_generated: 0,
+                                timestamp: new Date().toISOString()
+                            })), 
+                            mimetype: 'application/json' 
+                        },
+                        getS3Paths(gameCode).STATUS
+                    );
+                }
+            }
+        });
+
+        // Write the video URL to the process's stdin
+        videoProcess.stdin.write(videoUrl + '\n');
+        videoProcess.stdin.end();
+    } catch (error) {
+        console.error('Error in video processing:', error);
+        const game = activeGames.get(gameCode);
+        if (game) {
+            game.status = 'error';
+            await s3Utils.uploadFile(
+                { 
+                    buffer: Buffer.from(JSON.stringify({
+                        status: 'error',
+                        message: `Error in video processing: ${error.message}. Please try again.`,
+                        progress: 0,
+                        total_questions: game.numQuestions,
+                        questions_generated: 0,
+                        timestamp: new Date().toISOString()
+                    })), 
+                    mimetype: 'application/json' 
+                },
+                getS3Paths(gameCode).STATUS
+            );
+        }
+    }
+}
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
