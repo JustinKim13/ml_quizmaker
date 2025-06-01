@@ -1005,15 +1005,13 @@ app.post("/api/game/:gameCode/leave", async (req, res) => {
         // Remove player from game
         game.players = game.players.filter(p => p.name !== username);
         
-        // If host left or no players left, clean up the game
+        // If host left or no players left, clean up the game completely
         if (game.host === username || game.players.length === 0) {
-            // Clear questions and status
-            await s3Utils.deleteFile(getS3Paths(gameCode).QUESTIONS);
-            await s3Utils.deleteFile(getS3Paths(gameCode).STATUS);
-            await s3Utils.deleteFile(getS3Paths(gameCode).COMBINED_OUTPUT);
-            
-            // Remove game from active games
+            // Remove game from memory
             activeGames.delete(gameCode);
+            if (gameConnections.has(gameCode)) {
+                gameConnections.delete(gameCode);
+            }
             
             // Notify remaining players that host left
             if (game.host === username) {
@@ -1021,6 +1019,14 @@ app.post("/api/game/:gameCode/leave", async (req, res) => {
                     type: 'host_left'
                 });
             }
+            
+            // Clean up all files (S3 and local) - don't await to avoid blocking response
+            cleanupGameFiles(gameCode).catch(error => {
+                log(logLevels.ERROR, 'Failed to cleanup files when leaving game', { 
+                    gameCode, 
+                    error: error.message 
+                });
+            });
         } else {
             // Update game state
             await gameState.setGame(gameCode, game);
@@ -1033,7 +1039,7 @@ app.post("/api/game/:gameCode/leave", async (req, res) => {
     }
 });
 
-// Add game cleanup function
+// Add game cleanup function to cleanup inactive games
 function cleanupInactiveGames() {
     const now = Date.now();
     const INACTIVE_TIMEOUT = 30 * 60 * 1000; // 30 minutes
@@ -1045,10 +1051,20 @@ function cleanupInactiveGames() {
                 gameCode,
                 lastActivity: new Date(game.lastActivity).toISOString()
             });
+            
+            // Remove from memory
             activeGames.delete(gameCode);
             if (gameConnections.has(gameCode)) {
                 gameConnections.delete(gameCode);
             }
+            
+            // Clean up all files (S3 and local) - don't await to avoid blocking
+            cleanupGameFiles(gameCode).catch(error => {
+                log(logLevels.ERROR, 'Failed to cleanup files for inactive game', { 
+                    gameCode, 
+                    error: error.message 
+                });
+            });
         }
     }
 
@@ -1063,10 +1079,20 @@ function cleanupInactiveGames() {
                 totalGames: activeGames.size,
                 maxGames: MAX_ACTIVE_GAMES
             });
+            
+            // Remove from memory
             activeGames.delete(gameCode);
             if (gameConnections.has(gameCode)) {
                 gameConnections.delete(gameCode);
             }
+            
+            // Clean up all files (S3 and local) - don't await to avoid blocking
+            cleanupGameFiles(gameCode).catch(error => {
+                log(logLevels.ERROR, 'Failed to cleanup files for excess game', { 
+                    gameCode, 
+                    error: error.message 
+                });
+            });
         }
     }
 }
@@ -1212,6 +1238,64 @@ async function processVideo(videoUrl, gameCode, isAppending = false) {
                 getS3Paths(gameCode).STATUS
             );
         }
+    }
+}
+
+// Add game cleanup function to handle both S3 and local cleanup
+async function cleanupGameFiles(gameCode) {
+    try {
+        log(logLevels.INFO, 'Starting complete cleanup for game', { gameCode });
+        
+        // Clean up S3 files
+        const s3Paths = getS3Paths(gameCode);
+        await Promise.all([
+            s3Utils.deleteFile(s3Paths.QUESTIONS),
+            s3Utils.deleteFile(s3Paths.STATUS),
+            s3Utils.deleteFile(s3Paths.COMBINED_OUTPUT),
+            s3Utils.clearDirectory(s3Paths.UPLOADS)
+        ]);
+        
+        // Clean up local directories (if they exist)
+        const localPaths = [
+            path.join(__dirname, 'ml_models', 'outputs', gameCode),
+            path.join(__dirname, 'ml_models', 'models', gameCode)
+        ];
+        
+        for (const localPath of localPaths) {
+            try {
+                if (fs.existsSync(localPath)) {
+                    const { spawn } = require('child_process');
+                    await new Promise((resolve, reject) => {
+                        const rmProcess = spawn('rm', ['-rf', localPath]);
+                        rmProcess.on('close', (code) => {
+                            if (code === 0) {
+                                log(logLevels.INFO, 'Removed local directory', { path: localPath });
+                                resolve();
+                            } else {
+                                log(logLevels.WARN, 'Failed to remove local directory', { path: localPath, code });
+                                resolve(); // Don't fail cleanup for local directory issues
+                            }
+                        });
+                        rmProcess.on('error', (error) => {
+                            log(logLevels.WARN, 'Error removing local directory', { path: localPath, error: error.message });
+                            resolve(); // Don't fail cleanup for local directory issues
+                        });
+                    });
+                }
+            } catch (error) {
+                log(logLevels.WARN, 'Error checking/removing local directory', { 
+                    path: localPath, 
+                    error: error.message 
+                });
+            }
+        }
+        
+        log(logLevels.INFO, 'Complete cleanup finished for game', { gameCode });
+    } catch (error) {
+        log(logLevels.ERROR, 'Error during game cleanup', { 
+            gameCode, 
+            error: error.message 
+        });
     }
 }
 

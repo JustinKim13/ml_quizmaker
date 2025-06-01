@@ -248,20 +248,22 @@ def main():
     num_questions = args.num_questions
     game_code = args.game_code
     
+    # Use temporary files instead of permanent local storage
+    import tempfile
+    temp_dir = tempfile.mkdtemp()
+    
     paths = {
-        'input': f"ml_models/outputs/{game_code}/combined_output.txt",
-        'chunks': "ml_models/data_preprocessing/tokenized_chunks.json",
-        'output': f"ml_models/models/{game_code}/questions.json"
+        'input': os.path.join(temp_dir, 'combined_output.txt'),  # Temporary file
+        'chunks': os.path.join(temp_dir, 'tokenized_chunks.json'),  # Temporary file
+        'output': os.path.join(temp_dir, 'questions.json')  # Temporary file
     }
 
-    # Download combined_output.txt from S3 before reading
-    s3_key = f"outputs/{game_code}/combined_output.txt"
-    local_path = paths['input']
-    os.makedirs(os.path.dirname(local_path), exist_ok=True)
-    if not download_file(s3_key, local_path):
-        raise FileNotFoundError(f"Could not download {s3_key} from S3. Transcript missing.")
-
     try:
+        # Download combined_output.txt from S3 to temporary file
+        s3_key = f"outputs/{game_code}/combined_output.txt"
+        if not download_file(s3_key, paths['input']):
+            raise FileNotFoundError(f"Could not download {s3_key} from S3. Transcript missing.")
+
         # Set up logging
         logging.basicConfig(level=logging.DEBUG)
         logger = logging.getLogger(__name__)
@@ -344,7 +346,7 @@ def main():
             "questions_generated": 0
         }, game_code)
         
-        # Save chunks for debugging
+        # Save chunks for debugging (temporary file)
         with open(paths['chunks'], "w", encoding="utf-8") as f:
             json.dump(chunks[:50], f)  # Save first 50 chunks to avoid huge files
 
@@ -389,13 +391,12 @@ def main():
         if not qa_pairs:
             raise ValueError("No questions were generated successfully")
 
-        # Save questions with context to file
-        logger.info(f"Saving {len(qa_pairs)} questions to {paths['output']}")
-        os.makedirs(os.path.dirname(paths['output']), exist_ok=True)
+        # Save questions to temporary file first
+        logger.info(f"Saving {len(qa_pairs)} questions to temporary file")
         with open(paths['output'], "w", encoding="utf-8") as f:
             json.dump({"questions": qa_pairs}, f, indent=2)
 
-        # Upload questions to S3 so the backend can access them
+        # Upload questions to S3 directly (no permanent local storage)
         write_json_to_s3({"questions": qa_pairs}, f'questions/{game_code}/questions.json')
 
         # Clear CUDA cache
@@ -424,6 +425,14 @@ def main():
             "questions_generated": 0
         }, game_code)
         raise  # Re-raise the exception to ensure the process fails
+    finally:
+        # Clean up temporary directory and all files
+        import shutil
+        try:
+            shutil.rmtree(temp_dir)
+            logger.info(f"Cleaned up temporary directory: {temp_dir}")
+        except Exception as e:
+            logger.warning(f"Failed to clean up temporary directory: {e}")
 
 if __name__ == "__main__":
     main()
