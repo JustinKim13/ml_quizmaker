@@ -9,7 +9,7 @@ function GamePlay({ questions, onFinish, gameData }) {
     const [ws, setWs] = useState(null);
     const [playerScores, setPlayerScores] = useState({});
     const selectedAnswerRef = useRef(null);
-    const [timeLeft, setTimeLeft] = useState(gameData.timePerQuestion);  // time per question
+    const [timeLeft, setTimeLeft] = useState(null);  // Initialize as null, will be set by server
     const [uiSelectedAnswer, setUiSelectedAnswer] = useState(null); // allws us to immediately update the ui of selected answer instead of waiting to re-render state
     const [playerCount, setPlayerCount] = useState(0) ;
     const [playersAnswered, setPlayersAnswered] = useState(0);
@@ -30,7 +30,7 @@ function GamePlay({ questions, onFinish, gameData }) {
             }));
         };
 
-        websocket.onmessage = (event) => { // fired when data is received
+        websocket.onmessage = async (event) => { // fired when data is received
             const data = JSON.parse(event.data); // get data as JSON object from response
             console.log("Received WebSocket message:", data);
             
@@ -68,7 +68,7 @@ function GamePlay({ questions, onFinish, gameData }) {
                 if (data.currentQuestion < questions.length) {
                     setCurrentQuestion(data.currentQuestion);
                     setCurrentContext(data.context || ""); // Set context
-                    setTimeLeft(gameData.timePerQuestion); // Use the user-selected time per question
+                    setTimeLeft(data.timePerQuestion); // Use server's timePerQuestion value
                 } else {
                     console.log("setting game completed to true");
                     setGameCompleted(true);
@@ -94,7 +94,8 @@ function GamePlay({ questions, onFinish, gameData }) {
             }      
 
             if (data.type === 'game_started') {
-                setTimeLeft(data.timeLeft || data.timePerQuestion || gameData.timePerQuestion);
+                console.log('Game started message received');
+                setTimeLeft(data.timePerQuestion); // Set initial timer value from server
             }
         };
 

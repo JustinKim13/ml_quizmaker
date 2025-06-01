@@ -498,6 +498,7 @@ wss.on('connection', (ws) => {
                                 playersAnswered: 0,
                                 playerCount: currentGame.players.length,
                                 context: currentQuestionData.context || "",
+                                timePerQuestion: currentGame.timePerQuestion
                             });
                         }   
                         // Start the timer ONLY after the host triggers "Next Question"

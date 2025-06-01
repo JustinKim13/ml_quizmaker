@@ -10,6 +10,7 @@ const FileUpload = ({ setGameData, username, onBack }) => {
     const [timePerQuestion, setTimePerQuestion] = useState(30); // Default 30 seconds
     const [numQuestions, setNumQuestions] = useState(10); // Default 10 questions
     const [showAdvanced, setShowAdvanced] = useState(false);  // Add this with your other state variables
+    const [isLoading, setIsLoading] = useState(false); // Add loading state
 
     const handleRemoveFile = (indexToRemove) => { // function to remove files from upload
         setFiles(prevFiles => Array.from(prevFiles).filter((_, index) => index !== indexToRemove)); // use setFiles to modify files state
@@ -21,6 +22,7 @@ const FileUpload = ({ setGameData, username, onBack }) => {
             return;
         }
         setError(""); // if no error occurs, set error state to empty string
+        setIsLoading(true); // Set loading state to true when starting submission
 
         const formData = new FormData(); // create new instance of FormData object; saves pdfs, urls, and username
         for (let file of files) { // iterate through files
@@ -54,6 +56,7 @@ const FileUpload = ({ setGameData, username, onBack }) => {
         } catch (err) { // if any error occurs, set our error state to it
             console.error("Upload error:", err);
             setError("Failed to create game. Please try again.");
+            setIsLoading(false); // Reset loading state on error
         }
     };
 
@@ -185,8 +188,19 @@ const FileUpload = ({ setGameData, username, onBack }) => {
                     </div>
 
                     <div className="submit-wrapper">
-                        <button className="submit-button" onClick={handleSubmit}>
-                            Create Quiz
+                        <button 
+                            className={`submit-button ${isLoading ? 'loading' : ''}`} 
+                            onClick={handleSubmit}
+                            disabled={isLoading}
+                        >
+                            {isLoading ? (
+                                <div className="loading-spinner">
+                                    <div className="spinner"></div>
+                                    <span>Creating Quiz...</span>
+                                </div>
+                            ) : (
+                                'Create Quiz'
+                            )}
                         </button>
                         {error && <div className="error-message">{error}</div>}
                     </div>
