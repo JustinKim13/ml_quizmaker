@@ -538,13 +538,16 @@ wss.on('connection', (ws) => {
                             });
                         } else {
                             const currentQuestionData = currentGame.questions[currentGame.currentQuestion]; // Get the current question object
+                            // Reset timer before broadcasting
+                            currentGame.timeLeft = currentGame.timePerQuestion;
                             broadcastToGame(data.gameCode, {
                                 type: "next_question",
                                 currentQuestion: currentGame.currentQuestion,
                                 playersAnswered: 0,
                                 playerCount: currentGame.players.length,
                                 context: currentQuestionData.context || "",
-                                timePerQuestion: currentGame.timePerQuestion
+                                timePerQuestion: currentGame.timePerQuestion,
+                                timeLeft: currentGame.timeLeft // Include the initial timer value
                             });
                         }   
                         // Start the timer ONLY after the host triggers "Next Question"
@@ -570,11 +573,28 @@ wss.on('connection', (ws) => {
                 case 'reset_game': {
                     const curGame = activeGames.get(data.gameCode);
                     if (curGame) {
+                        // Reset all game state
+                        curGame.currentQuestion = 0;
+                        curGame.timeLeft = curGame.timePerQuestion;
                         curGame.answeredPlayers = new Map();
+                        
+                        // Clear existing timer
+                        if (curGame.timer) {
+                            clearInterval(curGame.timer);
+                            curGame.timer = null;
+                        }
+                        
+                        // Reset all player scores
+                        curGame.players.forEach((player) => {
+                            player.score = 0;
+                            player.correct = 0;
+                        });
+                        
                         broadcastToGame(data.gameCode, {
                             type: "reset_game", 
-                        })
+                        });
                     }
+                    break;
                 }
 
                 case 'game_completed': {
@@ -582,8 +602,9 @@ wss.on('connection', (ws) => {
                     if (completeGame) {
                         broadcastToGame(data.gameCode, {
                             type: "game_completed",
-                        })
+                        });
                     }
+                    break;
                 }
 
             }
@@ -635,51 +656,61 @@ function startGameTimer(gameCode) {
 
     game.timeLeft = game.timePerQuestion; // Use stored timePerQuestion
 
-    // Start the game timer
-    game.timer = setInterval(() => {
-        const currentGame = activeGames.get(gameCode); // Access the latest game state
-        if (!currentGame) {
-            console.error(`Game not found for gameCode: ${gameCode}`);
-            clearInterval(game.timer);
-            return;
-        }
+    // Start the game timer with a small delay to ensure all setup messages are processed first
+    setTimeout(() => {
+        // Immediately broadcast the initial timer value to ensure all clients start with correct time
+        broadcastToGame(gameCode, {
+            type: 'timer_update',
+            timeLeft: game.timeLeft,
+            currentQuestion: game.currentQuestion,
+        });
 
-        if (currentGame.timeLeft > 0) {
-            currentGame.timeLeft -= 1; // Decrement time
-            broadcastToGame(gameCode, {
-                type: 'timer_update',
-                timeLeft: currentGame.timeLeft,
-                currentQuestion: currentGame.currentQuestion,
-            });
-        } else {
-            clearInterval(currentGame.timer);
-
-            const currentQuestion = currentGame.currentQuestion || 0;
-
-            // Ensure the current question is within bounds
-            if (currentQuestion >= currentGame.questions.length) {
-                broadcastToGame(gameCode, {
-                    type: 'game_completed',
-                });
+        // Start the game timer
+        game.timer = setInterval(() => {
+            const currentGame = activeGames.get(gameCode); // Access the latest game state
+            if (!currentGame) {
+                console.error(`Game not found for gameCode: ${gameCode}`);
+                clearInterval(game.timer);
                 return;
             }
 
-            broadcastToGame(gameCode, {
-                type: 'show_answer',
-                correctAnswer: currentGame.questions[currentQuestion].correct_answer,
-                currentQuestion,
-            });
-
-            // Update player progress
-            currentGame.players.forEach((player) => {
+            if (currentGame.timeLeft > 0) {
+                currentGame.timeLeft -= 1; // Decrement time
                 broadcastToGame(gameCode, {
-                    type: 'player_progress',
-                    playerName: player.name,
-                    score: player.score || 0, 
+                    type: 'timer_update',
+                    timeLeft: currentGame.timeLeft,
+                    currentQuestion: currentGame.currentQuestion,
                 });
-            });
-        }
-    }, 1000); // Run every second
+            } else {
+                clearInterval(currentGame.timer);
+
+                const currentQuestion = currentGame.currentQuestion || 0;
+
+                // Ensure the current question is within bounds
+                if (currentQuestion >= currentGame.questions.length) {
+                    broadcastToGame(gameCode, {
+                        type: 'game_completed',
+                    });
+                    return;
+                }
+
+                broadcastToGame(gameCode, {
+                    type: 'show_answer',
+                    correctAnswer: currentGame.questions[currentQuestion].correct_answer,
+                    currentQuestion,
+                });
+
+                // Update player progress
+                currentGame.players.forEach((player) => {
+                    broadcastToGame(gameCode, {
+                        type: 'player_progress',
+                        playerName: player.name,
+                        score: player.score || 0, 
+                    });
+                });
+            }
+        }, 1000); // Run every second
+    }, 100); // 100ms delay to ensure question setup messages are processed first
 }
 
 // Add this endpoint to handle joining games

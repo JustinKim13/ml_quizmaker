@@ -68,7 +68,8 @@ function GamePlay({ questions, onFinish, gameData }) {
                 if (data.currentQuestion < questions.length) {
                     setCurrentQuestion(data.currentQuestion);
                     setCurrentContext(data.context || ""); // Set context
-                    setTimeLeft(data.timePerQuestion); // Use server's timePerQuestion value
+                    // Use timeLeft if provided, otherwise fall back to timePerQuestion
+                    setTimeLeft(data.timeLeft || data.timePerQuestion);
                 } else {
                     console.log("setting game completed to true");
                     setGameCompleted(true);
@@ -95,7 +96,8 @@ function GamePlay({ questions, onFinish, gameData }) {
 
             if (data.type === 'game_started') {
                 console.log('Game started message received');
-                setTimeLeft(data.timePerQuestion); // Set initial timer value from server
+                // Use timeLeft if provided, otherwise fall back to timePerQuestion
+                setTimeLeft(data.timeLeft || data.timePerQuestion);
             }
         };
 
