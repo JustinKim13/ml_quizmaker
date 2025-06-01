@@ -89,7 +89,7 @@ const Lobby = ({ gameData, startGame, onBack }) => {
                             break;
                         }
                         case 'error': {
-                            setStatusMessage(`Error: ${data.message || data.error}`);
+                            setStatusMessage(data.message || data.error);
                             setIsProcessing(false);
                             break;
                         }

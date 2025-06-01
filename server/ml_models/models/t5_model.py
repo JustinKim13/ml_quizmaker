@@ -44,7 +44,10 @@ def update_status(status_data, game_code):
     """Update status file in S3 with current state."""
     try:
         status_data = {**status_data, "timestamp": str(datetime.datetime.now())}
-        write_json_to_s3(status_data, f'status/{game_code}/status.json')
+        success = write_json_to_s3(status_data, f'status/{game_code}/status.json')
+        if not success:
+            logger.error(f"Failed to update status: {status_data}")
+            raise Exception("Failed to update status in S3")
     except Exception as e:
         logger.error(f"Failed to update status: {str(e)}")
         raise
@@ -263,11 +266,15 @@ def main():
         logging.basicConfig(level=logging.DEBUG)
         logger = logging.getLogger(__name__)
         
-        # Initial status update
+        # Get current status to maintain progress
+        current_status = read_json_from_s3(f'status/{game_code}/status.json')
+        current_progress = current_status.get('progress', 0) if current_status else 0
+        
+        # First status update - continue from previous progress
         update_status({
             "status": "processing", 
             "message": "Starting question generation...",
-            "progress": 20,  # Start from 20% since PDF extraction is done
+            "progress": current_progress,  # Continue from previous progress
             "total_questions": num_questions,
             "questions_generated": 0,
             "timestamp": datetime.datetime.now().isoformat()
@@ -284,6 +291,16 @@ def main():
             qg_model, qg_tokenizer = get_model("valhalla/t5-base-qg-hl")
             qg_model = qg_model.to(device)
             logger.info("Successfully loaded T5 model")
+            
+            # Update status after T5 model is loaded - increment by 5%
+            update_status({
+                "status": "processing", 
+                "message": "T5 model loaded successfully...",
+                "progress": min(95, current_progress + 5),
+                "total_questions": num_questions,
+                "questions_generated": 0
+            }, game_code)
+            
         except Exception as e:
             logger.error(f"Failed to load T5 model: {str(e)}")
             raise
@@ -294,6 +311,16 @@ def main():
                                  model="deepset/roberta-base-squad2",
                                  device=0 if torch.cuda.is_available() else -1)
             logger.info("Successfully loaded RoBERTa model")
+            
+            # Update status after RoBERTa model is loaded - increment by 5%
+            update_status({
+                "status": "processing", 
+                "message": "RoBERTa model loaded successfully...",
+                "progress": min(95, current_progress + 10),
+                "total_questions": num_questions,
+                "questions_generated": 0
+            }, game_code)
+            
         except Exception as e:
             logger.error(f"Failed to load RoBERTa model: {str(e)}")
             raise
@@ -303,18 +330,19 @@ def main():
             'qg_tokenizer': qg_tokenizer,
             'qa_pipeline': qa_pipeline
         }
-
-        update_status({
-            "status": "processing", 
-            "message": "Processing text...",
-            "progress": 30,  # Move to 30% after models are loaded
-            "total_questions": num_questions,
-            "questions_generated": 0
-        }, game_code)
         
         logger.info("Loading and tokenizing text...")
         chunks = load_and_tokenize_text(paths['input'])
         logger.info(f"Loaded {len(chunks)} text chunks")
+        
+        # Update status after text is loaded - increment by 5%
+        update_status({
+            "status": "processing", 
+            "message": "Text loaded and tokenized...",
+            "progress": min(95, current_progress + 15),
+            "total_questions": num_questions,
+            "questions_generated": 0
+        }, game_code)
         
         # Save chunks for debugging
         with open(paths['chunks'], "w", encoding="utf-8") as f:
@@ -326,6 +354,9 @@ def main():
         # Process more chunks to get more questions
         max_chunks_to_process = min(100, len(chunks))
         logger.info(f"Processing up to {max_chunks_to_process} chunks to generate {num_questions} questions")
+        
+        # Calculate progress increment per question
+        progress_per_question = (80 - (current_progress + 15)) / num_questions
         
         for i, chunk in enumerate(chunks[:max_chunks_to_process]):
             # Check if game still exists before processing each chunk
@@ -342,8 +373,8 @@ def main():
                     qa_pairs.append(qa_pair)
                     logger.info(f"Created multiple choice question {len(qa_pairs)} of {num_questions}")
                     
-                    # Update status after each successful question
-                    progress = min(100, 30 + (len(qa_pairs) / num_questions * 70))  # 30-100% range for question generation
+                    # Update status after each successful question - progress from current to 95%
+                    progress = min(95, current_progress + 15 + (len(qa_pairs) * progress_per_question))
                     update_status({
                         "status": "processing", 
                         "message": f"Generated {len(qa_pairs)} of {num_questions} questions...",
@@ -372,6 +403,7 @@ def main():
             torch.cuda.empty_cache()
         gc.collect()
 
+        # Final status update - 100% complete
         update_status({
             "status": "completed",
             "message": f"Successfully generated {len(qa_pairs)} questions",
@@ -387,7 +419,7 @@ def main():
         update_status({
             "status": "error",
             "message": f"Error: {str(e)}",
-            "progress": 0,
+            "progress": current_progress,  # Keep the current progress on error
             "total_questions": num_questions,
             "questions_generated": 0
         }, game_code)

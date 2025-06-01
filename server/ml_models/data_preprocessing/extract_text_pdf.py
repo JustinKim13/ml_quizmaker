@@ -165,17 +165,17 @@ def append_to_combined_output_s3(text, s3_path):
 def main():
     try:
         # Update status to processing at the very start
-        update_status('processing', 'Starting PDF extraction...', 10)
+        update_status('processing', 'Starting PDF extraction...', 0)
 
         # List all PDF files in S3 uploads directory
         pdf_files = list_files(S3_PATHS['UPLOADS'])
         if not pdf_files:
-            update_status('error', 'No PDF files found in uploads directory', 10)
+            update_status('error', 'No PDF files found in uploads directory', 0)
             return
 
         total_files = len(pdf_files)
         for i, pdf_key in enumerate(pdf_files):
-            progress = 10 + (i / total_files * 10)
+            progress = (i / total_files * 20)  # Progress from 0% to 20%
             # Download PDF to temp file
             with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_pdf:
                 temp_pdf_path = temp_pdf.name

@@ -130,7 +130,7 @@ app.post("/api/upload", async (req, res) => {
             const statusData = {
                 status: 'processing',
                 message: 'Starting processing...',
-                progress: 0,
+                progress: 0,  // Start at 0%
                 total_questions: numQuestions,
                 questions_generated: 0,
                 timestamp: new Date().toISOString()
@@ -168,6 +168,22 @@ app.post("/api/upload", async (req, res) => {
                     
                     if (code === 0) {
                         if (videoUrl) {
+                            // Update status before starting video processing - increment by 10%
+                            await s3Utils.uploadFile(
+                                { 
+                                    buffer: Buffer.from(JSON.stringify({
+                                        status: 'processing',
+                                        message: 'PDF processing completed. Starting video processing...',
+                                        progress: 10,
+                                        total_questions: numQuestions,
+                                        questions_generated: 0,
+                                        timestamp: new Date().toISOString()
+                                    })), 
+                                    mimetype: 'application/json' 
+                                },
+                                getS3Paths(gameCode).STATUS
+                            );
+                            
                             // If we have both PDF and video, process video and append to existing text
                             processVideo(videoUrl, gameCode, true);
                         } else {
@@ -187,7 +203,6 @@ app.post("/api/upload", async (req, res) => {
                                     buffer: Buffer.from(JSON.stringify({
                                         status: 'error',
                                         message: 'PDF extraction failed. Please try again.',
-                                        progress: 0,
                                         total_questions: numQuestions,
                                         questions_generated: 0,
                                         timestamp: new Date().toISOString()
@@ -200,6 +215,22 @@ app.post("/api/upload", async (req, res) => {
                     }
                 });
             } else if (videoUrl) {
+                // Update status before starting video processing - increment by 5%
+                await s3Utils.uploadFile(
+                    { 
+                        buffer: Buffer.from(JSON.stringify({
+                            status: 'processing',
+                            message: 'Preparing video processing...',
+                            progress: 5,
+                            total_questions: numQuestions,
+                            questions_generated: 0,
+                            timestamp: new Date().toISOString()
+                        })), 
+                        mimetype: 'application/json' 
+                    },
+                    getS3Paths(gameCode).STATUS
+                );
+                
                 // If no files but video URL provided, process video directly
                 processVideo(videoUrl, gameCode, false);
             } else {
@@ -212,7 +243,6 @@ app.post("/api/upload", async (req, res) => {
                             buffer: Buffer.from(JSON.stringify({
                                 status: 'error',
                                 message: 'Please provide either PDF files or a video URL.',
-                                progress: 0,
                                 total_questions: numQuestions,
                                 questions_generated: 0,
                                 timestamp: new Date().toISOString()
@@ -277,6 +307,7 @@ app.get("/api/status", async (req, res) => {
                 questionsGenerated: true,
                 status: 'ready',
                 message: `Questions ready! (${questionsCount} questions generated)`,
+                progress: 100,
                 timestamp: status ? status.timestamp : new Date().toISOString()
             });
         }
@@ -286,7 +317,7 @@ app.get("/api/status", async (req, res) => {
                 questionsGenerated: false,
                 status: status.status,
                 message: status.message,
-                progress: status.progress,
+                progress: status.progress || 0,
                 total_questions: status.total_questions,
                 questions_generated: status.questions_generated,
                 timestamp: status.timestamp
@@ -295,7 +326,8 @@ app.get("/api/status", async (req, res) => {
             return res.status(200).json({
                 questionsGenerated: false,
                 status: 'unknown',
-                message: 'Starting...'
+                message: 'Starting...',
+                progress: 0
             });
         }
     } catch (error) {
@@ -303,7 +335,8 @@ app.get("/api/status", async (req, res) => {
         res.status(500).json({ 
             questionsGenerated: false,
             status: 'error',
-            message: error.message
+            message: error.message,
+            progress: 0
         });
     }
 });
@@ -787,86 +820,96 @@ function runQuestionGeneration(gameCode) {
 
     console.log(`Starting question generation for game ${gameCode} with ${game.numQuestions} questions`);
     
-    // Set initial status without clearing the file
-    const initialStatus = {
-        status: 'processing',
-        message: 'Starting question generation...',
-        progress: 20,  // Start from 20% since PDF extraction is done
-        total_questions: game.numQuestions,
-        questions_generated: 0,
-        timestamp: new Date().toISOString()
-    };
+    // Get current status to preserve progress - don't reset it!
+    s3Utils.getFile(getS3Paths(gameCode).STATUS)
+        .then(existingStatusFile => {
+            let currentProgress = 0;
+            try {
+                if (existingStatusFile) {
+                    const existingStatus = JSON.parse(existingStatusFile);
+                    currentProgress = existingStatus.progress || 0;
+                }
+            } catch (e) {
+                console.log('No existing status found, starting from 0%');
+                currentProgress = 0;
+            }
 
-    // Write initial status and wait for it to complete
-    s3Utils.uploadFile(
-        { buffer: Buffer.from(JSON.stringify(initialStatus)), mimetype: 'application/json' },
-        getS3Paths(gameCode).STATUS
-    )
-    .then(() => {
-        // Add a longer delay to ensure S3 consistency
-        return new Promise(resolve => setTimeout(resolve, 2000));
-    })
-    .then(() => {
-        // Check if game is still active before starting question generation
-        const currentGame = activeGames.get(gameCode);
-        if (!currentGame) {
-            console.log(`Game ${gameCode} no longer exists, stopping question generation`);
-            return;
-        }
+            // Set status preserving the current progress
+            const status = {
+                status: 'processing',
+                message: 'Starting question generation...',
+                progress: currentProgress,  // PRESERVE EXISTING PROGRESS!
+                total_questions: game.numQuestions,
+                questions_generated: 0,
+                timestamp: new Date().toISOString()
+            };
 
-        const questionProcess = spawn('python3', [questionScript, '--num_questions', game.numQuestions.toString(), '--game_code', gameCode]);
-        
-        let stdoutData = '';
-        let stderrData = '';
-        
-        questionProcess.stdout.on('data', (data) => {
-            const output = data.toString();
-            stdoutData += output;
-            console.log('Question Generation:', output);
-        });
+            // Write status and wait for it to complete
+            return s3Utils.uploadFile(
+                { buffer: Buffer.from(JSON.stringify(status)), mimetype: 'application/json' },
+                getS3Paths(gameCode).STATUS
+            );
+        })
+        .catch(error => {
+            // If we can't get existing status, start from 0
+            console.log('Could not get existing status, starting from 0%:', error.message);
+            const status = {
+                status: 'processing',
+                message: 'Starting question generation...',
+                progress: 0,  // Start from 0 if no existing status
+                total_questions: game.numQuestions,
+                questions_generated: 0,
+                timestamp: new Date().toISOString()
+            };
 
-        questionProcess.stderr.on('data', (data) => {
-            const error = data.toString();
-            stderrData += error;
-            console.error('Question Generation Error:', error);
-        });
-
-        questionProcess.on('close', async (code) => {
-            console.log(`Question generation completed with code ${code}`);
-            const game = activeGames.get(gameCode);
-            if (!game) {
-                console.log(`Game ${gameCode} no longer exists, skipping question processing`);
+            return s3Utils.uploadFile(
+                { buffer: Buffer.from(JSON.stringify(status)), mimetype: 'application/json' },
+                getS3Paths(gameCode).STATUS
+            );
+        })
+        .then(() => {
+            // Add a longer delay to ensure S3 consistency
+            return new Promise(resolve => setTimeout(resolve, 2000));
+        })
+        .then(() => {
+            // Check if game is still active before starting question generation
+            const currentGame = activeGames.get(gameCode);
+            if (!currentGame) {
+                console.log(`Game ${gameCode} no longer exists, stopping question generation`);
                 return;
             }
 
-            if (code === 0) {
-                console.log('Question generation successful');
-                // Add a delay before trying to read the questions
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                
-                // Try to load questions from S3
-                try {
-                    const questionsFile = await s3Utils.getFile(getS3Paths(gameCode).QUESTIONS);
-                    const questionsData = JSON.parse(questionsFile);
-                    if (questionsData.questions && questionsData.questions.length > 0) {
-                        game.questions = questionsData.questions;
-                        game.status = 'ready';
-                        broadcastToGame(gameCode, {
-                            type: 'game_ready',
-                            questionsCount: questionsData.questions.length
-                        });
-                    } else {
-                        game.status = 'error';
-                        broadcastToGame(gameCode, {
-                            type: 'game_error',
-                            message: 'No questions were generated. Please try again with a different file.'
-                        });
-                        console.error('No questions generated');
-                    }
-                } catch (err) {
-                    console.error('Failed to load questions after generation:', err);
-                    // Add a retry with delay
+            const questionProcess = spawn('python3', [questionScript, '--num_questions', game.numQuestions.toString(), '--game_code', gameCode]);
+            
+            let stdoutData = '';
+            let stderrData = '';
+            
+            questionProcess.stdout.on('data', (data) => {
+                const output = data.toString();
+                stdoutData += output;
+                console.log('Question Generation:', output);
+            });
+
+            questionProcess.stderr.on('data', (data) => {
+                const error = data.toString();
+                stderrData += error;
+                console.error('Question Generation Error:', error);
+            });
+
+            questionProcess.on('close', async (code) => {
+                console.log(`Question generation completed with code ${code}`);
+                const game = activeGames.get(gameCode);
+                if (!game) {
+                    console.log(`Game ${gameCode} no longer exists, skipping question processing`);
+                    return;
+                }
+
+                if (code === 0) {
+                    console.log('Question generation successful');
+                    // Add a delay before trying to read the questions
                     await new Promise(resolve => setTimeout(resolve, 2000));
+                    
+                    // Try to load questions from S3
                     try {
                         const questionsFile = await s3Utils.getFile(getS3Paths(gameCode).QUESTIONS);
                         const questionsData = JSON.parse(questionsFile);
@@ -883,47 +926,69 @@ function runQuestionGeneration(gameCode) {
                                 type: 'game_error',
                                 message: 'No questions were generated. Please try again with a different file.'
                             });
+                            console.error('No questions generated');
                         }
-                    } catch (retryErr) {
+                    } catch (err) {
+                        console.error('Failed to load questions after generation:', err);
+                        // Add a retry with delay
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        try {
+                            const questionsFile = await s3Utils.getFile(getS3Paths(gameCode).QUESTIONS);
+                            const questionsData = JSON.parse(questionsFile);
+                            if (questionsData.questions && questionsData.questions.length > 0) {
+                                game.questions = questionsData.questions;
+                                game.status = 'ready';
+                                broadcastToGame(gameCode, {
+                                    type: 'game_ready',
+                                    questionsCount: questionsData.questions.length
+                                });
+                            } else {
+                                game.status = 'error';
+                                broadcastToGame(gameCode, {
+                                    type: 'game_error',
+                                    message: 'No questions were generated. Please try again with a different file.'
+                                });
+                            }
+                        } catch (retryErr) {
+                            game.status = 'error';
+                            broadcastToGame(gameCode, {
+                                type: 'game_error',
+                                message: 'Failed to load questions after generation. Please try again.'
+                            });
+                            console.error('Failed to load questions after retry:', retryErr);
+                        }
+                    }
+                } else {
+                    console.error('Question generation failed:', stderrData);
+                    if (game) {
                         game.status = 'error';
                         broadcastToGame(gameCode, {
                             type: 'game_error',
-                            message: 'Failed to load questions after generation. Please try again.'
+                            message: 'Question generation failed. Please try again.'
                         });
-                        console.error('Failed to load questions after retry:', retryErr);
                     }
                 }
-            } else {
-                console.error('Question generation failed:', stderrData);
+            });
+
+            questionProcess.on('error', (error) => {
+                console.error('Failed to start question generation:', error);
+                const game = activeGames.get(gameCode);
                 if (game) {
                     game.status = 'error';
-                    broadcastToGame(gameCode, {
-                        type: 'game_error',
-                        message: 'Question generation failed. Please try again.'
-                    });
                 }
-            }
-        });
-
-        questionProcess.on('error', (error) => {
-            console.error('Failed to start question generation:', error);
+            });
+        })
+        .catch(error => {
+            console.error('Failed to write initial status:', error);
             const game = activeGames.get(gameCode);
             if (game) {
                 game.status = 'error';
+                broadcastToGame(gameCode, {
+                    type: 'game_error',
+                    message: 'Failed to start question generation. Please try again.'
+                });
             }
         });
-    })
-    .catch(error => {
-        console.error('Failed to write initial status:', error);
-        const game = activeGames.get(gameCode);
-        if (game) {
-            game.status = 'error';
-            broadcastToGame(gameCode, {
-                type: 'game_error',
-                message: 'Failed to start question generation. Please try again.'
-            });
-        }
-    });
 }
 
 // Add these new endpoints
@@ -1080,7 +1145,6 @@ async function processVideo(videoUrl, gameCode, isAppending = false) {
                         buffer: Buffer.from(JSON.stringify({
                             status: 'error',
                             message: `Failed to start video processing: ${error.message}. Please try again.`,
-                            progress: 0,
                             total_questions: game.numQuestions,
                             questions_generated: 0,
                             timestamp: new Date().toISOString()
@@ -1114,7 +1178,6 @@ async function processVideo(videoUrl, gameCode, isAppending = false) {
                             buffer: Buffer.from(JSON.stringify({
                                 status: 'error',
                                 message: `Video processing failed: ${stderrData || 'Unknown error'}. Please try again.`,
-                                progress: 0,
                                 total_questions: game.numQuestions,
                                 questions_generated: 0,
                                 timestamp: new Date().toISOString()
@@ -1140,7 +1203,6 @@ async function processVideo(videoUrl, gameCode, isAppending = false) {
                     buffer: Buffer.from(JSON.stringify({
                         status: 'error',
                         message: `Error in video processing: ${error.message}. Please try again.`,
-                        progress: 0,
                         total_questions: game.numQuestions,
                         questions_generated: 0,
                         timestamp: new Date().toISOString()

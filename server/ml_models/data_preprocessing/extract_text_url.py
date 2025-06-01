@@ -29,6 +29,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 def update_status(status, message, progress=None):
+    """Update the status file in S3"""
     global game_code
     status_data = {
         'status': status,
@@ -37,7 +38,21 @@ def update_status(status, message, progress=None):
     }
     if progress is not None:
         status_data['progress'] = progress
-    write_json_to_s3(status_data, S3_PATHS['STATUS'])
+    success = write_json_to_s3(status_data, S3_PATHS['STATUS'])
+    if not success:
+        logger.error(f"Failed to update status: {status} - {message}")
+        raise Exception("Failed to update status in S3")
+
+def get_current_progress():
+    """Get current progress from existing status file"""
+    try:
+        status_data = read_json_from_s3(S3_PATHS['STATUS'])
+        if status_data:
+            return status_data.get('progress', 0)
+        return 0
+    except Exception as e:
+        logger.debug(f"Could not read existing status: {e}")
+        return 0
 
 def download_video_audio_to_tempfile(video_url):
     """Downloads best audio from video to a temp file using yt-dlp, returns the temp file path."""
@@ -101,18 +116,28 @@ def main():
     try:
         video_url = input().strip()
         should_append = args.append.lower() == 'true'
-        update_status('processing', 'Starting video processing...', 10)
+        
+        # Get current progress to preserve it
+        current_progress = get_current_progress()
+        
+        # Update status preserving existing progress
+        update_status('processing', 'Starting video processing...', current_progress)
+        
         audio_temp_path = download_video_audio_to_tempfile(video_url)
         if not audio_temp_path:
             logger.error("Failed to download video audio")
             update_status('error', 'Failed to download video audio')
             return
-        update_status('processing', 'Transcribing video content...', 50)
+        
+        # Increment progress by 10%
+        update_status('processing', 'Transcribing video content...', min(95, current_progress + 10))
+        
         transcript = transcribe_audio(audio_temp_path)
         os.remove(audio_temp_path)  # Clean up temp file
         if transcript:
             append_to_combined_output_s3(transcript, S3_PATHS['COMBINED_OUTPUT'])
-            update_status('video_extracted', 'Video processing completed successfully', 70)
+            # Increment progress by another 10%
+            update_status('video_extracted', 'Video processing completed successfully', min(95, current_progress + 20))
         else:
             update_status('error', 'Failed to transcribe video')
     except Exception as e:

@@ -51,7 +51,7 @@ def read_json_from_s3(s3_key):
 def write_json_to_s3(data, s3_key):
     """Write JSON data to S3"""
     try:
-        s3_client.put_object(
+        response = s3_client.put_object(
             Bucket=BUCKET_NAME,
             Key=s3_key,
             Body=json.dumps(data),

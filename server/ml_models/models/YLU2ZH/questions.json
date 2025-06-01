@@ -1,0 +1,64 @@
+{
+  "questions": [
+    {
+      "question": "What is the name of the prehistoric town in which The Flinstones live?",
+      "options": [
+        "Mounds",
+        "Brick",
+        "Bedrock",
+        "Noisia"
+      ],
+      "correct_answer": "Bedrock",
+      "context": "Answer: Vitamin A\nTrivia Question: What is the name of the prehistoric town in which The Flinstones live? Answer: **Bedrock**\nTrivia Question: What is the driest continent? Answer: Antartica\nTrivia Question: Which US state has the longest cave system in the world? Answer: Kentucky\nTrivia Question: What blood type qualifies as a universal donor? Answer: O negative\nTrivia Question: What is the most abundant metal in the Earth\u2019s crust? Answer: Aluminium\nTrivia Question: What is the most abundant element in the universe? Answer: Hydrogen\nTrivia Question: What was Babe Ruth\u2019s first name? Answer: George\nTrivia Question: Who was Sports Illustrated\u2019s first female sportsperson of the year? Answer: Billie Jean King\nTrivia Question: Robin Williams won a best supporting actor Oscar for what film? Answer: Good Will Hunting\nTrivia Question: What was the first Disney animated film based on the life of a real person? Answer: Pocahontas\nTrivia Question: What character did Michael J.",
+      "answer_confidence": 0.7769079804420471
+    },
+    {
+      "question": "What is the name of the smallest country in the world?",
+      "options": [
+        "Christian Country",
+        "Western Sahara",
+        "Vatican City",
+        "Holy See"
+      ],
+      "correct_answer": "Vatican City",
+      "context": "Answer: Prunes\nTrivia Question: What does BMW stand for (in English)? Answer: Bavarian Motor Works\nTrivia Question: Which two countries share the longest international border? Answer: Canada and the USA\nTrivia Question: What is the smallest country in the world? Answer: **Vatican City**\nTrivia Question: Which bone are babies born without? Answer: Knee cap\nTrivia Question: Which name is rapper Sean Combs better known by? Answer: P . Diddy\nTrivia Question: Which British girl group had a member by the name of Mel B? Answer: Spice Girls\nTrivia Question: How many hearts does an octopus have? Answer: Three\nTrivia Question: How many eyes does a bee have? Answer: Five\nTrivia Question: What was the name of the rock band formed by Jimmy Page? Answer: Led Zeppelin\nTrivia Question: Who was the first woman to win a Nobel Prize (1903)? Answer: Marie Curie\nTrivia Question: Which mammal has no vocal cords?",
+      "answer_confidence": 0.7362104058265686
+    },
+    {
+      "question": "Which company makes the Butterfinger bar?",
+      "options": [
+        "Hersey",
+        "Nestle",
+        "Coca Cola",
+        "Dasani"
+      ],
+      "correct_answer": "Nestle",
+      "context": "Answer:Phalanges\nTrivia Question: What company makes the Butterfinger bar? Answer: **Nestle**\nTrivia Question: Which character becomes Brienne\u2019s squire in season 4 of \u201cGame of Thrones\u201d? Answer: Podrick Payne\nTrivia Question: What particle in an atom has a positive charge? Answer: Proton\nTrivia Question: What is the biggest artery in the human body? Answer: Aorta\nTrivia Question: What is the name of Jordan\u2019s capital city? Answer: Amman\nTrivia Question: What is Harry Potter\u2019s Patronus? Answer: A stag\nTrivia Question: What candy was used to lure E.T. in the 1982 movie \u201cE.T.: The Extra-Terrestri -\nal\u201d? Answer: Reese\u2019s Pieces\nTrivia Question: The tuba is the largest member of which musical family? Answer: Brass\nTrivia Question: Which is the main substance used to make a crayon? Answer: Wax\nTrivia Question: The video game \u201cHappy Feet\u201d features what animals? Answer: Penguins\nTrivia Question: What actress won her first Oscar for \u201cKramer vs. Kramer\u201d?",
+      "answer_confidence": 0.8413857817649841
+    },
+    {
+      "question": "What is the name of the first vending machine?",
+      "options": [
+        "Holy Oil",
+        "Athame",
+        "Magic Water",
+        "Holy Water"
+      ],
+      "correct_answer": "Holy Water",
+      "context": "Answer: Prius\nTrivia Question: What did the first vending machine dispense? Answer: **Holy Water**\nTrivia Question: Who created the animated series \u201cFuturama\u201d? Answer: Matt Groening\nTrivia Question: What is the most populous city in Canada? Answer: Toronto\nTrivia Question: Taylor Swift grew up on what type of farm? Answer: Christmas Tree Farm\nTrivia Question: Which Doors song is about Jim Morrison\u2019s relationship with Pamela Courson? Answer: Queen Of The Highway\nTrivia Question: Which President of South Africa ordered Nelson Mandela\u2019s release from pris -\non? Answer: De Klerk\nTrivia Question: Which 2008 comedy had the tagline \u201cPut this in your pipe and smoke it\u201d? Answer: Pineapple Express\nTrivia Question: Islamabad is the capital of which country? Answer: Pakistan\nTrivia Question: American pioneer, John Chapman, was famous for planting which kind of \ntree? Answer: Apple Trees\nTrivia Question: Where is the uvula located? Answer: In The Throat\nTrivia Question: What gas makes soda bubbly?",
+      "answer_confidence": 0.7244222164154053
+    },
+    {
+      "question": "What is the lowest rank of a US soldier?",
+      "options": [
+        "Hotdog",
+        "Bitcoin",
+        "Private",
+        "Public"
+      ],
+      "correct_answer": "Private",
+      "context": "Answer: Pinocchio\nTrivia Question: What is the lowest army rank of a US soldier? Answer: **Private**\nTrivia Question: Before the Beatles were formed, John Lennon, Paul McCartney and George \nHarrison were originally members of which group? Answer: The Quarrymen\nTrivia Question: What is the name of the Earth\u2019s largest ocean? Answer: The Pacific Ocean\nTrivia Question: When Michael Jordan played for the Chicago Bulls, how many NBA Champi -\nonships did he win? Answer: Six\nTrivia Question: What country won the very first FIFA World Cup in 1930? Answer: Uruguay\nTrivia Question: In what year was the first ever Wimbledon Championship held? Answer: 1877\nTrivia Question: What is often seen as the smallest unit of memory? Answer: kilobyte\nTrivia Question: Which planet is the hottest in the solar system? Answer: Venus\nTrivia Question: Which country produces the most coffee in the world? Answer: Brazil\nTrivia Question: What is the common name for dried plums?",
+      "answer_confidence": 0.7343344688415527
+    }
+  ]
+}
