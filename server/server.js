@@ -81,6 +81,9 @@ const clearDirectory = async (prefix) => {
     }
 };
 
+// Define Python path to use virtual environment
+const pythonPath = path.join(__dirname, 'env', 'bin', 'python');
+
 // Update upload endpoint
 app.post("/api/upload", async (req, res) => {
     try {
@@ -153,7 +156,7 @@ app.post("/api/upload", async (req, res) => {
 
                 // Run PDF extraction
                 const extractScript = path.join(__dirname, 'ml_models/data_preprocessing/extract_text_pdf.py');
-                const extractProcess = spawn('python3', [extractScript, '--game_code', gameCode]);
+                const extractProcess = spawn(pythonPath, [extractScript, '--game_code', gameCode]);
                 
                 extractProcess.stdout.on('data', (data) => {
                     console.log('PDF Extraction:', data.toString());
@@ -918,7 +921,7 @@ function runQuestionGeneration(gameCode) {
                 return;
             }
 
-            const questionProcess = spawn('python3', [questionScript, '--num_questions', game.numQuestions.toString(), '--game_code', gameCode]);
+            const questionProcess = spawn(pythonPath, [questionScript, '--num_questions', game.numQuestions.toString(), '--game_code', gameCode]);
             
             let stdoutData = '';
             let stderrData = '';

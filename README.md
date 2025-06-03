@@ -83,6 +83,13 @@ pip install -r ml_models/requirements.txt
 # Download required spaCy model
 python -m spacy download en_core_web_sm
 
+# Download the s2v_reddit_2015_md model from GitHub releases for distractor generation
+curl -L "https://github.com/explosion/sense2vec/releases/download/v1.0.0/s2v_reddit_2015_md.tar.gz" -o s2v_reddit_2015_md.tar.gz
+tar -xzf s2v_reddit_2015_md.tar.gz
+mkdir -p ml_models/models
+mv s2v_old ml_models/models/
+rm -f s2v_reddit_2015_md.tar.gz
+
 # Start the Node.js server in development mode
 npm run dev
 ```
@@ -235,6 +242,7 @@ curl -X POST -F "files=@test.pdf" http://localhost:5000/api/upload
 - Ensure stable internet connection for initial model download
 - Check Python environment activation
 - Verify all dependencies in requirements.txt are installed
+- If you get "Sense2Vec model directory not found" error, run the Sense2Vec download command from the setup instructions
 
 **File upload fails**
 - Check AWS S3 credentials and permissions
