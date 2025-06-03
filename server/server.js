@@ -490,7 +490,7 @@ wss.on('connection', (ws) => {
                         points = Math.floor(minPoints + (maxPoints - minPoints) * (effectiveTimeLeft / totalTime));
                     }
                 
-                    // Find the player and update their score
+                    // Find the player and update their score (but don't broadcast it yet)
                     const player = game.players.find((p) => p.name === playerName);
                     if (player) {
                         player.score = (player.score || 0) + points;
@@ -502,25 +502,33 @@ wss.on('connection', (ws) => {
                 
                     console.log(`Player ${playerName} answered ${isCorrect ? "correctly" : "incorrectly"} with ${game.timeLeft}s left. Points: ${points}`);
                 
-                    // Broadcast the updated scores and answer state
+                    // Only broadcast the answer count, not the scores yet
                     broadcastToGame(gameCode, {
                         type: 'player_answered',
                         playersAnswered: game.answeredPlayers.size,
                         playerTimeLeft: game.timeLeft,
                         playerName,
-                        isCorrect,
-                        points,
-                        totalScore: player ? player.score || 0 : 0,
-                        correct: player ? player.correct || 0 : 0,
+                        // Remove immediate score broadcasting - scores will be shown when everyone answers or timer ends
                     });
                 
+                    // Check if everyone has answered or timer has ended
                     if (game.answeredPlayers.size === game.players.length || game.timeLeft <= 0) {
                         clearInterval(game.timer);
                 
+                        // Now broadcast all the scores when showing the answer
+                        const scoreUpdates = {};
+                        game.players.forEach((player) => {
+                            scoreUpdates[player.name] = {
+                                score: player.score || 0,
+                                correct: player.correct || 0
+                            };
+                        });
+
                         broadcastToGame(gameCode, {
                             type: 'show_answer',
                             correctAnswer: question.correct_answer,
                             currentQuestion: game.currentQuestion,
+                            scoreUpdates: scoreUpdates // Include all score updates here
                         });
                     }
                     break;
@@ -694,19 +702,20 @@ function startGameTimer(gameCode) {
                     return;
                 }
 
+                // Collect all score updates when time runs out
+                const scoreUpdates = {};
+                currentGame.players.forEach((player) => {
+                    scoreUpdates[player.name] = {
+                        score: player.score || 0,
+                        correct: player.correct || 0
+                    };
+                });
+
                 broadcastToGame(gameCode, {
                     type: 'show_answer',
                     correctAnswer: currentGame.questions[currentQuestion].correct_answer,
                     currentQuestion,
-                });
-
-                // Update player progress
-                currentGame.players.forEach((player) => {
-                    broadcastToGame(gameCode, {
-                        type: 'player_progress',
-                        playerName: player.name,
-                        score: player.score || 0, 
-                    });
+                    scoreUpdates: scoreUpdates // Include all score updates here
                 });
             }
         }, 1000); // Run every second
@@ -765,14 +774,13 @@ app.get("/api/active-games", (req, res) => {
     // Filter games that are:
     // 1. Not private
     // 2. Have players
-    // 3. Are actually in progress (not just created)
+    // 3. Remove the status filtering so public games show up immediately
     const games = Array.from(activeGames.entries())
         .filter(([_, game]) => {
             return !game.isPrivate && 
-                   game.players.length > 0 && 
-                   game.status !== 'processing' &&
-                   game.questions && 
-                   game.questions.length > 0;
+                   game.players.length > 0;
+                   // Removed: game.status !== 'processing' &&
+                   // Removed: game.questions && game.questions.length > 0;
         })
         .map(([code, game]) => ({
             gameCode: code,

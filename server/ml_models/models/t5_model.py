@@ -351,7 +351,20 @@ def main():
             json.dump(chunks[:50], f)  # Save first 50 chunks to avoid huge files
 
         qa_pairs = []
+        
+        # Set a seed based on current time and game code for better randomization
+        random.seed(hash(game_code + str(datetime.datetime.now().timestamp())))
+        
         random.shuffle(chunks)  # Randomize to get diverse questions
+        
+        # Create an index list and shuffle it to ensure better randomization
+        chunk_indices = list(range(len(chunks)))
+        random.shuffle(chunk_indices)  # Shuffle the indices
+        
+        # Additional randomization: sort chunks by a random key to break any file-order bias
+        chunks_with_random_keys = [(random.random(), i, chunks[i]) for i in range(len(chunks))]
+        chunks_with_random_keys.sort()  # Sort by random key
+        randomized_chunks = [chunk for _, _, chunk in chunks_with_random_keys]
         
         # Process more chunks to get more questions
         max_chunks_to_process = min(100, len(chunks))
@@ -360,15 +373,25 @@ def main():
         # Calculate progress increment per question
         progress_per_question = (80 - (current_progress + 15)) / num_questions
         
-        for i, chunk in enumerate(chunks[:max_chunks_to_process]):
+        processed_chunks = set()  # Keep track of processed chunks to avoid duplicates
+        
+        for i in range(max_chunks_to_process):
             # Check if game still exists before processing each chunk
             if not check_game_status(game_code):
                 return
 
             if len(qa_pairs) >= num_questions:
                 break
+            
+            # Use random index to get chunk, ensuring we don't process the same chunk twice    
+            chunk_idx = chunk_indices[i]
+            if chunk_idx in processed_chunks:
+                continue
                 
-            logger.info(f"Processing chunk {i+1}/{max_chunks_to_process}")
+            chunk = randomized_chunks[chunk_idx] if chunk_idx < len(randomized_chunks) else chunks[chunk_idx]
+            processed_chunks.add(chunk_idx)
+                
+            logger.info(f"Processing chunk {i+1}/{max_chunks_to_process} (index: {chunk_idx})")
             try:
                 qa_pair = process_chunk(chunk, models)
                 if qa_pair:

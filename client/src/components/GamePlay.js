@@ -35,14 +35,15 @@ function GamePlay({ questions, onFinish, gameData }) {
             console.log("Received WebSocket message:", data);
             
             if (data.type === 'player_answered') {
-                setPlayerScores((prevScores) => ({
-                    ...prevScores,
-                    [data.playerName]: {
-                        ...prevScores[data.playerName],
-                        score: data.totalScore || 0, // Use backend's totalScore
-                        correct: data.correct || 0, // Use backend's correct count
-                    },
-                }));
+                // Remove immediate score updates - scores will be updated when answer is shown
+                // setPlayerScores((prevScores) => ({
+                //     ...prevScores,
+                //     [data.playerName]: {
+                //         ...prevScores[data.playerName],
+                //         score: data.totalScore || 0, // Use backend's totalScore
+                //         correct: data.correct || 0, // Use backend's correct count
+                //     },
+                // }));
             }                     
 
             if (data.type === 'player_count') {
@@ -56,6 +57,23 @@ function GamePlay({ questions, onFinish, gameData }) {
             if (data.type === 'show_answer') {
                 setShowAnswer(true);
                 setTimeLeft(null); // Pause the timer after showing the answer
+                
+                // Update scores when answer is shown (after everyone answers or timer ends)
+                if (data.scoreUpdates) {
+                    setPlayerScores((prevScores) => ({
+                        ...prevScores,
+                        ...Object.fromEntries(
+                            Object.entries(data.scoreUpdates).map(([playerName, scoreData]) => [
+                                playerName,
+                                {
+                                    ...prevScores[playerName],
+                                    score: scoreData.score,
+                                    correct: scoreData.correct
+                                }
+                            ])
+                        )
+                    }));
+                }
             }                         
                         
             if (data.type === "next_question") {

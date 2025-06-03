@@ -47,8 +47,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-top: 5px;
-    margin-bottom: 5px;
+    margin-top: 0px;
+    margin-bottom: 2px;
 }
 
 .input-group input {
@@ -107,7 +107,7 @@
 }
 
 .file-list {
-    margin: 20px 0;
+    margin: 10px 0;
     padding: 0;
     list-style: none;
 }
@@ -543,7 +543,7 @@
     align-items: center;
     gap: 10px;
     width: 100%;
-    margin: 15px 0;
+    margin: 10px 0;
     margin-bottom: 0px;
 }
 
