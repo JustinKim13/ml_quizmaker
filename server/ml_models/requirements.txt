@@ -16,6 +16,8 @@ sentence-transformers==2.2.2
 numpy==1.22.4
 huggingface-hub==0.14.1
 scikit-learn
+openai-whisper==20230314
+yt-dlp==2023.7.6
 
 # also, run:
 # python -m spacy download en_core_web_sm

@@ -5,8 +5,8 @@ A sophisticated multiplayer quiz application that uses machine learning to autom
 ## Features
 
 ### Core Functionality
-- **PDF-to-Quiz Generation**: Upload PDFs and automatically extract questions using T5-base and NLP models
-- **Video-to-Quiz Generation**: Process YouTube videos with OCR and transcript analysis
+- **PDF-to-Quiz Generation**: Upload PDFs and automatically extract text using PyPDF with OCR fallback for non-selectable text
+- **Video-to-Quiz Generation**: Process YouTube videos by extracting audio and converting speech to text using Whisper AI
 - **Real-time Multiplayer**: WebSocket-powered live quiz sessions with up to 8 players
 - **Intelligent Question Generation**: 
   - Multiple choice questions with AI-generated distractors
@@ -16,10 +16,10 @@ A sophisticated multiplayer quiz application that uses machine learning to autom
 - **Cloud Storage**: AWS S3 integration for file management and processing
 
 ### Technical Highlights
-- **Machine Learning Pipeline**: T5-base for question generation, advanced text preprocessing
+- **Machine Learning Pipeline**: T5-base for question generation, Whisper for speech recognition, advanced text preprocessing
 - **Real-time Communication**: WebSocket server handling concurrent player sessions
-- **Document Processing**: Advanced PDF text extraction with PyPDF and OCR capabilities
-- **Video Processing**: YouTube video analysis with Tesseract OCR
+- **Document Processing**: PyPDF text extraction with Tesseract OCR fallback for scanned/image-based PDFs
+- **Audio Processing**: YouTube video transcription using OpenAI's Whisper speech-to-text model
 - **Cloud Integration**: AWS S3 for scalable file storage and processing
 - **RESTful API**: Clean Express.js backend with comprehensive error handling
 
@@ -42,10 +42,13 @@ A sophisticated multiplayer quiz application that uses machine learning to autom
 - **Python 3.8+** - ML model execution environment
 - **T5-base** - Question generation model
 - **Transformers** - Hugging Face model integration
+- **OpenAI Whisper** - Speech-to-text transcription for video processing
+- **yt-dlp** - YouTube video audio extraction
 - **PyPDF** - PDF text extraction
-- **Tesseract OCR** - Image and video text recognition
-- **pdf2image** - PDF to image conversion
+- **Tesseract OCR** - Image and scanned PDF text recognition (fallback)
+- **pdf2image** - PDF to image conversion for OCR
 - **scikit-learn** - Text processing and similarity metrics
+- **sense2vec** - Contextual word similarity for distractor generation
 
 ### Cloud Services
 - **AWS S3** - File storage and management
@@ -56,6 +59,7 @@ A sophisticated multiplayer quiz application that uses machine learning to autom
 - Node.js 16+
 - npm or yarn
 - Python 3.8+ (for ML models)
+- FFmpeg (for video audio processing)
 - AWS account (for S3 storage)
 
 ### Backend Setup
@@ -249,6 +253,12 @@ curl -X POST -F "files=@test.pdf" http://localhost:5000/api/upload
 - Verify file size is under 100MB limit
 - Ensure S3 bucket exists and is accessible
 
+**Video processing fails**
+- Ensure FFmpeg is installed and accessible in your PATH
+- On macOS with Homebrew: `brew install ffmpeg`
+- On Ubuntu/Debian: `sudo apt update && sudo apt install ffmpeg`
+- On Windows: Download from https://ffmpeg.org/download.html
+
 **WebSocket connection issues**
 - Verify server is running on correct port
 - Check CORS configuration for WebSocket connections
@@ -267,5 +277,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Acknowledgments
 
 - Hugging Face Transformers library for ML models
+- OpenAI Whisper for speech recognition
 - Express.js and React communities for development frameworks
-- Tesseract OCR for video text extraction
+- yt-dlp for video audio extraction
+- Tesseract OCR for PDF text extraction fallback
