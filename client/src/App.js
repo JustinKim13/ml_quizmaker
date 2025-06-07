@@ -19,7 +19,7 @@ function App() {
         Particles.init({
             selector: '.background',
             maxParticles: 100,
-            color: ['#ffffff', '#cccccc', '#999999'], // Sleek white/grey colors
+            color: ['#ffffff', '#cccccc', '#999999'], 
             connectParticles: true,
             speed: 0.1,
         });

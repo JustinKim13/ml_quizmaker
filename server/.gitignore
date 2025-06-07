@@ -1,6 +1,8 @@
 # Ignore output and data directories
 ml_models/outputs/
 ml_models/data_preprocessing/pdf_files/
+ml_models/data_preprocessing/video_files/
+ml_models/data_preprocessing/tokenized_chunks.json
 
 # Ignore media files
 *.mp3

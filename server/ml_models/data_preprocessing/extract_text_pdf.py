@@ -1,201 +1,269 @@
-from pypdf import PdfReader
-from pdf2image import convert_from_path
-from pytesseract import image_to_string
+"""
+PDF Text Extraction Module
+
+This module extracts text from PDF files stored in S3, processes them using PyPDF2 
+with OCR fallback, and stores the combined output back to S3.
+"""
+
 import os
 import json
 import datetime
-from concurrent.futures import ThreadPoolExecutor
-from functools import partial
-import traceback
-import sys
-import logging
-from pathlib import Path
 import tempfile
+import logging
+import argparse
+import traceback
+from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
+
+from pypdf import PdfReader
+from pdf2image import convert_from_path
+from pytesseract import image_to_string
+
 from s3_utils import (
     list_files, download_file, upload_file,
     write_json_to_s3, read_json_from_s3
 )
-import argparse
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--game_code', type=str, required=True)
-args = parser.parse_args()
-game_code = args.game_code
+# Constants
+MAX_EXTRACTION_TIME = 300  # 5 minutes max per file
+MIN_TEXT_LENGTH = 100  # Minimum characters to consider meaningful text
 
-# S3 paths
-S3_PATHS = {
-    'UPLOADS': f'uploads/{game_code}/',
-    'QUESTIONS': f'questions/{game_code}/questions.json',
-    'STATUS': f'status/{game_code}/status.json',
-    'COMBINED_OUTPUT': f'outputs/{game_code}/combined_output.txt'
-}
 
-def extract_text_from_pdf(file_path):
-    """Extracts text from a PDF file using PyPDF. Falls back to OCR for pages without text."""
-    try:
-        reader = PdfReader(file_path)
-        text_parts = []
-
-        for page_num, page in enumerate(reader.pages):
-            page_text = page.extract_text()
-            if page_text and page_text.strip():
-                text_parts.append(page_text)
-            else:
-                print(f"Page {page_num + 1}: No selectable text found, using OCR...")
-                text_parts.append(extract_text_with_ocr_for_page(file_path, page_num))
-
-        return "\n".join(text_parts).strip()
-    except Exception as e:
-        print(f"Error reading PDF file {file_path}: {e}")
-        return ""
-
-def extract_text_with_ocr(file_path):
-    """Extracts text from a PDF file using OCR."""
-    try:
-        images = convert_from_path(file_path)
-        with ThreadPoolExecutor() as executor:
-            texts = executor.map(image_to_string, images)
-        return "\n".join(texts).strip()
-    except Exception as e:
-        print(f"Error performing OCR on {file_path}: {e}")
-        return ""
-
-def extract_text_with_ocr_for_page(file_path, page_num):
-    """Extracts text from a specific PDF page using OCR."""
-    try:
-        images = convert_from_path(file_path, first_page=page_num + 1, last_page=page_num + 1)
-        return "\n".join(image_to_string(image) for image in images).strip()
-    except Exception as e:
-        print(f"Error performing OCR on page {page_num + 1} of {file_path}: {e}")
-        return ""
-
-def list_pdf_files(directory_path):
-    """Lists all PDF files in the given directory."""
-    try:
-        files = [f for f in os.listdir(directory_path) if f.lower().endswith('.pdf')]
-        if not files:
-            print(f"No PDF files found in {directory_path}.")
-        return files
-    except Exception as e:
-        print(f"Error accessing directory {directory_path}: {e}")
-        return []
-
-def update_status(status, message, progress=None):
-    """Update the status file in S3"""
-    status_data = {
-        'status': status,
-        'message': message,
-        'timestamp': str(datetime.datetime.now())
-    }
-    if progress is not None:
-        status_data['progress'] = progress
-    write_json_to_s3(status_data, S3_PATHS['STATUS'])
-
-def combine_selected_pdfs(directory_path, output_file_path):
-    try:
-        # Make sure we're using absolute paths
-        abs_dir_path = os.path.abspath(directory_path)
-        print(f"Looking for PDF files in: {abs_dir_path}")
+class PDFExtractor:
+    """Handles PDF text extraction with OCR fallback."""
+    
+    def __init__(self, game_code):
+        self.game_code = game_code
+        self.s3_paths = {
+            'UPLOADS': f'uploads/{game_code}/',
+            'QUESTIONS': f'questions/{game_code}/questions.json',
+            'STATUS': f'status/{game_code}/status.json',
+            'COMBINED_OUTPUT': f'outputs/{game_code}/combined_output.txt'
+        }
+    
+    def extract_text_from_pdf(self, file_path):
+        """
+        Extract text from a PDF file using PyPDF with OCR fallback.
         
-        update_status("processing", "Reading PDF files...", 10)
-        pdf_files = list_pdf_files(abs_dir_path)
-        
-        if not pdf_files:
-            print(f"No PDF files found in {abs_dir_path}")
-            update_status("error", "Error: No PDF files found", 10)
-            return False
-
-        combined_text = []
-        for file_name in pdf_files:
-            update_status("processing", f"Processing {file_name[14:]}...", 20)
-            file_path = os.path.join(abs_dir_path, file_name)
+        Args:
+            file_path (str): Path to the PDF file
             
-            # Add a timeout mechanism
-            start_time = datetime.datetime.now()
-            max_time = 300  # 5 minutes max per file
-            
-            print(f"Starting extraction from {file_name}")
-            file_text = extract_text_from_pdf(file_path)
-            
-            # Check if extraction took too long
-            elapsed = (datetime.datetime.now() - start_time).total_seconds()
-            if elapsed > max_time:
-                print(f"Warning: Extraction from {file_name} took {elapsed} seconds")
-            
-            # Check if we got meaningful text
-            if len(file_text.strip()) < 100:
-                print(f"Warning: Extracted very little text from {file_name} ({len(file_text)} chars)")
-            else:
-                print(f"Successfully extracted {len(file_text)} characters from {file_name}")
-                
-            combined_text.append(file_text)
-
+        Returns:
+            str: Extracted text content
+        """
         try:
-            with open(output_file_path, "w", encoding="utf-8") as output_file:
-                output_file.write("\n\n".join(combined_text))
-            print(f"\nCombined text saved to: {output_file_path}")
-            print(f"Total text length: {sum(len(t) for t in combined_text)} characters")
-            return True
+            reader = PdfReader(file_path)
+            text_parts = []
+
+            for page_num, page in enumerate(reader.pages):
+                page_text = page.extract_text()
+                if page_text and page_text.strip():
+                    text_parts.append(page_text)
+                else:
+                    logger.info(f"Page {page_num + 1}: No selectable text found, using OCR...")
+                    ocr_text = self._extract_text_with_ocr_for_page(file_path, page_num)
+                    if ocr_text:
+                        text_parts.append(ocr_text)
+
+            return "\n".join(text_parts).strip()
+            
         except Exception as e:
-            print(f"Error writing to output file {output_file_path}: {e}")
+            logger.error(f"Error reading PDF file {file_path}: {e}")
+            return ""
+
+    def _extract_text_with_ocr_for_page(self, file_path, page_num):
+        """
+        Extract text from a specific PDF page using OCR.
+        
+        Args:
+            file_path (str): Path to the PDF file
+            page_num (int): Page number (0-indexed)
+            
+        Returns:
+            str: Extracted text from the page
+        """
+        try:
+            images = convert_from_path(
+                file_path, 
+                first_page=page_num + 1, 
+                last_page=page_num + 1
+            )
+            return "\n".join(image_to_string(image) for image in images).strip()
+            
+        except Exception as e:
+            logger.error(f"Error performing OCR on page {page_num + 1} of {file_path}: {e}")
+            return ""
+
+    def update_status(self, status, message, progress=None):
+        """
+        Update the processing status in S3.
+        
+        Args:
+            status (str): Current status
+            message (str): Status message
+            progress (int, optional): Progress percentage
+        """
+        status_data = {
+            'status': status,
+            'message': message,
+            'timestamp': str(datetime.datetime.now())
+        }
+        if progress is not None:
+            status_data['progress'] = progress
+            
+        try:
+            write_json_to_s3(status_data, self.s3_paths['STATUS'])
+        except Exception as e:
+            logger.error(f"Failed to update status: {e}")
+
+    def _append_to_combined_output_s3(self, text):
+        """
+        Append extracted text to the combined output file in S3.
+        
+        Args:
+            text (str): Text to append
+        """
+        temp_file = tempfile.NamedTemporaryFile(delete=False, mode='a+', encoding='utf-8')
+        temp_file.close()
+        
+        try:
+            # Download existing file if it exists
+            if download_file(self.s3_paths['COMBINED_OUTPUT'], temp_file.name):
+                with open(temp_file.name, 'a', encoding='utf-8') as f:
+                    f.write('\n\n' + text)
+            else:
+                with open(temp_file.name, 'w', encoding='utf-8') as f:
+                    f.write(text)
+            
+            # Upload updated file
+            upload_file(temp_file.name, self.s3_paths['COMBINED_OUTPUT'])
+            
+        except Exception as e:
+            logger.error(f"Failed to append to combined output: {e}")
+        finally:
+            if os.path.exists(temp_file.name):
+                os.unlink(temp_file.name)
+
+    def process_pdf_files(self):
+        """
+        Main processing function to extract text from all PDF files in S3.
+        
+        Returns:
+            bool: True if processing completed successfully, False otherwise
+        """
+        try:
+            self.update_status('processing', 'Starting PDF extraction...', 0)
+
+            # List all PDF files in S3 uploads directory
+            pdf_files = list_files(self.s3_paths['UPLOADS'])
+            if not pdf_files:
+                self.update_status('error', 'No PDF files found in uploads directory', 0)
+                return False
+
+            total_files = len(pdf_files)
+            logger.info(f"Found {total_files} PDF files to process")
+
+            for i, pdf_key in enumerate(pdf_files):
+                progress = int((i / total_files) * 20)  # Progress from 0% to 20%
+                filename = os.path.basename(pdf_key)
+                
+                logger.info(f"Processing file {i+1}/{total_files}: {filename}")
+                self.update_status('processing', f'Processing {filename}...', progress)
+                
+                # Process individual PDF file
+                if self._process_single_pdf(pdf_key):
+                    logger.info(f"Successfully processed {filename}")
+                else:
+                    logger.warning(f"Failed to process {filename}")
+
+            # Initialize empty questions file
+            write_json_to_s3({'questions': []}, self.s3_paths['QUESTIONS'])
+            self.update_status('pdf_extracted', 'PDF extraction completed successfully', 20)
+            
+            logger.info("PDF extraction process completed successfully")
+            return True
+
+        except Exception as e:
+            error_msg = f"Error in PDF processing: {str(e)}"
+            logger.error(error_msg)
+            logger.error(traceback.format_exc())
+            self.update_status('error', error_msg)
             return False
 
-    except Exception as e:
-        print(f"Error in combine_selected_pdfs: {e}")
-        traceback.print_exc()  # Print full traceback
-        return False
-
-def append_to_combined_output_s3(text, s3_path):
-    # Download existing combined_output.txt if it exists
-    temp_file = tempfile.NamedTemporaryFile(delete=False, mode='a+', encoding='utf-8')
-    temp_file.close()
-    if download_file(s3_path, temp_file.name):
-        with open(temp_file.name, 'a', encoding='utf-8') as f:
-            f.write('\n\n' + text)
-    else:
-        with open(temp_file.name, 'w', encoding='utf-8') as f:
-            f.write(text)
-    upload_file(temp_file.name, s3_path)
-    os.unlink(temp_file.name)
-
-def main():
-    try:
-        # Update status to processing at the very start
-        update_status('processing', 'Starting PDF extraction...', 0)
-
-        # List all PDF files in S3 uploads directory
-        pdf_files = list_files(S3_PATHS['UPLOADS'])
-        if not pdf_files:
-            update_status('error', 'No PDF files found in uploads directory', 0)
-            return
-
-        total_files = len(pdf_files)
-        for i, pdf_key in enumerate(pdf_files):
-            progress = (i / total_files * 20)  # Progress from 0% to 20%
-            # Download PDF to temp file
+    def _process_single_pdf(self, pdf_key):
+        """
+        Process a single PDF file from S3.
+        
+        Args:
+            pdf_key (str): S3 key for the PDF file
+            
+        Returns:
+            bool: True if processing was successful, False otherwise
+        """
+        temp_pdf_path = None
+        try:
+            # Download PDF to temporary file
             with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_pdf:
                 temp_pdf_path = temp_pdf.name
+
             if not download_file(pdf_key, temp_pdf_path):
                 logger.error(f"Failed to download {pdf_key}")
-                os.unlink(temp_pdf_path)
-                continue
-            # Extract text
-            text = extract_text_from_pdf(temp_pdf_path)
-            os.unlink(temp_pdf_path)
-            if text:
-                append_to_combined_output_s3(text, S3_PATHS['COMBINED_OUTPUT'])
-                update_status('processing', f'Processing PDF {i+1}/{total_files}...', int(progress))
+                return False
 
-        # Initialize empty questions file
-        write_json_to_s3({'questions': []}, S3_PATHS['QUESTIONS'])
-        update_status('pdf_extracted', 'PDF extraction completed successfully', 20)
-    except Exception as e:
-        logger.error(f"Error in main process: {str(e)}")
-        update_status('error', f'Error: {str(e)}')
+            # Extract text with timeout tracking
+            start_time = datetime.datetime.now()
+            text = self.extract_text_from_pdf(temp_pdf_path)
+            elapsed = (datetime.datetime.now() - start_time).total_seconds()
+
+            # Log extraction results
+            if elapsed > MAX_EXTRACTION_TIME:
+                logger.warning(f"Extraction took {elapsed:.1f} seconds (longer than expected)")
+
+            if len(text.strip()) < MIN_TEXT_LENGTH:
+                logger.warning(f"Extracted very little text ({len(text)} chars)")
+                return False
+            else:
+                logger.info(f"Successfully extracted {len(text)} characters")
+
+            # Append to combined output
+            if text:
+                self._append_to_combined_output_s3(text)
+                return True
+
+            return False
+
+        except Exception as e:
+            logger.error(f"Error processing {pdf_key}: {e}")
+            return False
+        finally:
+            # Clean up temporary file
+            if temp_pdf_path and os.path.exists(temp_pdf_path):
+                os.unlink(temp_pdf_path)
+
+
+def main():
+    """Main entry point for the PDF extraction script."""
+    parser = argparse.ArgumentParser(description='Extract text from PDF files in S3')
+    parser.add_argument('--game_code', type=str, required=True, 
+                       help='Game code to identify the S3 directory structure')
+    args = parser.parse_args()
+
+    extractor = PDFExtractor(args.game_code)
+    success = extractor.process_pdf_files()
+    
+    if not success:
+        logger.error("PDF extraction failed")
+        exit(1)
+    
+    logger.info("PDF extraction completed successfully")
+
 
 if __name__ == "__main__":
     main()
